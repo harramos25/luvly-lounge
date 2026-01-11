@@ -45,7 +45,16 @@ export default function ChatsPage() {
         setUserId(user.id);
 
         if (activeTab === "inbox") {
-            // 1. LOAD CHATS (Same logic as before)
+            // 1. GET FRIEND IDS FIRST (We only want to show chats with Accepted Friends)
+            const { data: friendsA } = await supabase.from("friends").select("user_b").eq("user_a", user.id).eq("status", "accepted");
+            const { data: friendsB } = await supabase.from("friends").select("user_a").eq("user_b", user.id).eq("status", "accepted");
+
+            const friendIds = new Set([
+                ...(friendsA?.map(f => f.user_b) || []),
+                ...(friendsB?.map(f => f.user_a) || [])
+            ]);
+
+            // 2. LOAD CHATS
             const { data: myChats } = await supabase.from("conversation_participants").select("conversation_id").eq("user_id", user.id);
 
             if (myChats && myChats.length > 0) {
@@ -60,11 +69,19 @@ export default function ChatsPage() {
                     .order("updated_at", { ascending: false });
 
                 if (fullChats) {
-                    const formatted = fullChats.map((chat: any) => ({
-                        id: chat.id,
-                        updated_at: chat.updated_at,
-                        participants: chat.conversation_participants.filter((p: any) => p.user_id !== user.id)
-                    }));
+                    // Filter: Only keep chats where the OTHER participant is in 'friendIds'
+                    const formatted = fullChats
+                        .map((chat: any) => {
+                            const participants = chat.conversation_participants.filter((p: any) => p.user_id !== user.id);
+                            return {
+                                id: chat.id,
+                                updated_at: chat.updated_at,
+                                participants: participants,
+                                otherUserId: participants[0]?.user_id
+                            };
+                        })
+                        .filter(chat => chat.otherUserId && friendIds.has(chat.otherUserId)); // <--- THE FILTER
+
                     setConversations(formatted);
                 }
             }
