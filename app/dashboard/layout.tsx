@@ -93,11 +93,99 @@ export default function DashboardLayout({
         { name: "Settings", href: "/dashboard/settings", icon: Settings },
     ];
 
-    return (
-        <div className="flex h-screen bg-black text-white font-sans">
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-            {/* --- SIDEBAR --- */}
-            <div className="hidden md:flex w-64 border-r border-zinc-800 flex-col p-4 bg-[#0a0a0a]">
+    return (
+        <div className="flex h-dvh md:h-screen flex-col md:flex-row bg-black text-white font-sans overflow-hidden">
+
+            {/* --- MOBILE HEADER --- */}
+            <div className="md:hidden h-16 border-b border-zinc-800 bg-[#0a0a0a] flex items-center justify-between px-4 z-40 shrink-0">
+                <h1 className="font-serif text-xl bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] bg-clip-text text-transparent">
+                    Luvly Lounge.
+                </h1>
+                <button onClick={() => setMobileMenuOpen(true)} className="p-2 text-zinc-400 hover:text-white">
+                    <Menu size={24} />
+                </button>
+            </div>
+
+            {/* --- MOBILE SIDEBAR OVERLAY --- */}
+            {mobileMenuOpen && (
+                <div className="fixed inset-0 z-50 md:hidden">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                        onClick={() => setMobileMenuOpen(false)}
+                    />
+
+                    {/* Sidebar Content */}
+                    <div className="absolute inset-y-0 left-0 w-64 bg-[#0a0a0a] border-r border-zinc-800 p-4 flex flex-col animate-in slide-in-from-left duration-200">
+                        <div className="flex justify-between items-center mb-8 px-2">
+                            <h1 className="font-serif text-2xl bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] bg-clip-text text-transparent">
+                                Luvly.
+                            </h1>
+                            <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-zinc-500 hover:text-white">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* User Card (Mobile) */}
+                        <div className="bg-[#111] rounded-2xl p-3 mb-6 flex items-center gap-3 border border-zinc-800">
+                            <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0">
+                                {profile.avatar_url ? (
+                                    <img src={profile.avatar_url} className="w-full h-full object-cover" alt="User" />
+                                ) : (
+                                    <User className="w-6 h-6 m-2 text-zinc-500" />
+                                )}
+                            </div>
+                            <div className="overflow-hidden flex-1">
+                                <p className="text-sm font-bold text-white truncate">{profile.full_name}</p>
+                                {/* @ts-ignore */}
+                                {profile.status === 'pending' ? (
+                                    <span className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono mt-0.5"><Clock size={10} /> Pending</span>
+                                ) : (
+                                    <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700 font-mono">{profile.tier}</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Mobile Nav Links */}
+                        <div className="flex-1 space-y-1">
+                            <p className="text-xs font-bold text-zinc-500 px-2 mb-2 uppercase tracking-wider">Social</p>
+                            {navItems.map((item) => (
+                                <Link
+                                    key={item.name}
+                                    href={item.href}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${pathname === item.href ? "bg-[#FF6B91]/10 text-[#FF6B91] font-medium" : "text-zinc-400 hover:bg-zinc-900 hover:text-white"}`}
+                                >
+                                    <item.icon size={18} /> {item.name}
+                                </Link>
+                            ))}
+                        </div>
+
+                        {/* Mobile Bottom Links */}
+                        <div className="space-y-1 mt-6 border-t border-zinc-900 pt-6">
+                            <p className="text-xs font-bold text-zinc-500 px-2 mb-2 uppercase tracking-wider">You</p>
+                            {bottomItems.map((item) => (
+                                <Link
+                                    key={item.name}
+                                    href={item.href}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${pathname === item.href ? "bg-white text-black font-bold" : "text-zinc-400 hover:bg-zinc-900 hover:text-white"}`}
+                                >
+                                    <item.icon size={18} /> {item.name}
+                                </Link>
+                            ))}
+                            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-500 hover:bg-red-900/10 hover:text-red-400 transition-colors mt-2">
+                                <LogOut size={18} /> Log Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- DESKTOP SIDEBAR (Existing) --- */}
+            <div className="hidden md:flex w-64 border-r border-zinc-800 flex-col p-4 bg-[#0a0a0a] shrink-0">
 
                 {/* Logo */}
                 <div className="mb-8 px-2">
@@ -193,7 +281,7 @@ export default function DashboardLayout({
             </div>
 
             {/* --- MAIN CONTENT AREA --- */}
-            <main className="flex-1 overflow-y-auto relative bg-[#0a0a0a]">
+            <main className="flex-1 overflow-y-auto relative bg-[#0a0a0a] w-full">
                 {children}
             </main>
 
