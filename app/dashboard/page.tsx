@@ -110,10 +110,10 @@ export default function MatchLobby() {
                         <ZapIcon size={32} className="text-white" />
                     </div>
                     <h1 className="text-4xl md:text-5xl font-serif font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500">
-                        Find Your Vibe
+                        Chat with Strangers
                     </h1>
                     <p className="text-zinc-400 mt-4 text-lg">
-                        Select your current mood and we'll pair you with someone compatible.
+                        Select your interests and connect instantly with a random stranger.
                     </p>
                 </div>
 
@@ -144,11 +144,11 @@ export default function MatchLobby() {
                 >
                     {finding ? (
                         <span className="flex items-center gap-2">
-                            <Loader2 className="animate-spin" /> Looking for partner...
+                            <Loader2 className="animate-spin" /> Looking for stranger...
                         </span>
                     ) : (
                         <span className="flex items-center gap-2">
-                            <Search size={20} /> Start New Chat
+                            <Search size={20} /> Chat with Stranger
                         </span>
                     )}
                     <div className="absolute -inset-3 rounded-full bg-white/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
