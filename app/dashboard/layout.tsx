@@ -178,7 +178,7 @@ export default function DashboardLayout({
             </div>
 
             {/* --- MAIN CONTENT AREA --- */}
-            <main className="flex-1 overflow-hidden relative">
+            <main className="flex-1 overflow-y-auto relative bg-[#0a0a0a]">
                 {children}
             </main>
 

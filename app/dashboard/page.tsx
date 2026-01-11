@@ -148,7 +148,7 @@ export default function MatchLobby() {
                         </span>
                     ) : (
                         <span className="flex items-center gap-2">
-                            <Search size={20} /> Chat with Stranger
+                            <Search size={20} /> Start New Chat
                         </span>
                     )}
                     <div className="absolute -inset-3 rounded-full bg-white/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
