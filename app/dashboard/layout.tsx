@@ -76,8 +76,7 @@ export default function DashboardLayout({
     };
 
     const navItems = [
-        { name: "Lounge", href: "/dashboard", icon: MessageCircle },
-        { name: "Start Match", href: "/dashboard/match", icon: ZapIcon },
+        { name: "Lounge", href: "/dashboard", icon: ZapIcon },
         { name: "Messages", href: "/dashboard/chats", icon: MessageCircle },
     ];
 

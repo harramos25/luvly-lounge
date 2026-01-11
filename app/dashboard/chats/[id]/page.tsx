@@ -125,14 +125,14 @@ export default function ChatRoom() {
                 reason: reason
             });
             alert("Report submitted. An admin will review this.");
-            router.push('/dashboard/match'); // Instant Redirect for safety
+            router.push('/dashboard'); // Instant Redirect for safety
         }
     };
 
     const handleSkip = () => {
         // "Skip" means leave this chat and go back to find a NEW one.
         if (confirm("Leave this conversation?")) {
-            router.push('/dashboard/match');
+            router.push('/dashboard');
         }
     };
 
@@ -142,7 +142,7 @@ export default function ChatRoom() {
             {/* HEADER */}
             <div className="h-16 border-b border-zinc-800 flex items-center justify-between px-4 bg-[#111]">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.push('/dashboard/match')} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400">
+                    <button onClick={() => router.push('/dashboard')} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400">
                         <ArrowLeft size={20} />
                     </button>
 
@@ -201,8 +201,8 @@ export default function ChatRoom() {
                     return (
                         <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                             <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm leading-relaxed ${isMe
-                                    ? "bg-[#FF6B91] text-black font-medium rounded-tr-sm"
-                                    : "bg-[#1A1A1A] border border-zinc-800 text-zinc-200 rounded-tl-sm"
+                                ? "bg-[#FF6B91] text-black font-medium rounded-tr-sm"
+                                : "bg-[#1A1A1A] border border-zinc-800 text-zinc-200 rounded-tl-sm"
                                 }`}>
                                 {msg.content}
                             </div>
