@@ -136,8 +136,8 @@ export default function MatchLobby() {
                                 key={tag}
                                 onClick={() => toggleInterest(tag)}
                                 className={`px-6 py-3 rounded-full text-sm font-medium transition-all ${myInterests.includes(tag)
-                                        ? "bg-[#FF6B91] text-black shadow-lg shadow-[#FF6B91]/20 scale-105"
-                                        : "bg-[#1A1A1A] text-zinc-400 border border-zinc-800 hover:border-zinc-600"
+                                    ? "bg-[#FF6B91] text-black shadow-lg shadow-[#FF6B91]/20 scale-105"
+                                    : "bg-[#1A1A1A] text-zinc-400 border border-zinc-800 hover:border-zinc-600"
                                     }`}
                             >
                                 {tag}
