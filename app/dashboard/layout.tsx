@@ -46,9 +46,11 @@ export default function DashboardLayout({
                 .single();
 
             if (data) {
-                // 🔒 CHECK 1: ARE THEY VERIFIED?
+                // 🔒 CHECK 1: ARE THEY VERIFIED? (Allow 'verified' OR 'pending')
                 console.log("Gatekeeper Check:", data.verification_status);
-                if (data.verification_status !== 'verified') {
+
+                // Only redirect if they haven't submitted (null) or were rejected
+                if (!data.verification_status || data.verification_status === 'rejected') {
                     console.log("Redirecting to /verify...");
                     router.push('/verify');
                     return;
@@ -64,7 +66,9 @@ export default function DashboardLayout({
                 setProfile({
                     full_name: data.full_name || user.email?.split('@')[0] || "User",
                     avatar_url: data.avatar_url,
-                    tier: "FREE"
+                    tier: "FREE",
+                    // @ts-ignore
+                    status: data.verification_status
                 });
             }
         };
@@ -74,7 +78,7 @@ export default function DashboardLayout({
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        router.push("/login");
+        router.push("/login"); // Force full reload/redirect
     };
 
     const navItems = [
@@ -100,7 +104,7 @@ export default function DashboardLayout({
                     </h1>
                 </div>
 
-                {/* User Card (Updated to show 'Lux') */}
+                {/* User Card */}
                 <div className="bg-[#111] rounded-2xl p-3 mb-6 flex items-center gap-3 border border-zinc-800">
                     <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0">
                         {profile.avatar_url ? (
@@ -109,13 +113,20 @@ export default function DashboardLayout({
                             <User className="w-6 h-6 m-2 text-zinc-500" />
                         )}
                     </div>
-                    <div className="overflow-hidden">
+                    <div className="overflow-hidden flex-1">
                         <p className="text-sm font-bold text-white truncate">
                             {profile.full_name}
                         </p>
-                        <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700 font-mono">
-                            {profile.tier}
-                        </span>
+                        {/* @ts-ignore */}
+                        {profile.status === 'pending' ? (
+                            <span className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono mt-0.5">
+                                <Clock size={10} /> Pending
+                            </span>
+                        ) : (
+                            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700 font-mono">
+                                {profile.tier}
+                            </span>
+                        )}
                     </div>
                 </div>
 
