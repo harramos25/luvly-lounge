@@ -11,7 +11,9 @@ import {
     User,
     LogOut,
     Crown,
-    Zap as ZapIcon
+    Zap as ZapIcon,
+    Menu,
+    X
 } from "lucide-react";
 
 export default function DashboardLayout({
