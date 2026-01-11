@@ -19,7 +19,7 @@ export default function VerifyPage() {
     const [gesture] = useState(() => GESTURES[Math.floor(Math.random() * GESTURES.length)]);
     const [image, setImage] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
-    const webcamRef = useRef<Webcam>(null);
+    const webcamRef = useRef<any>(null);
     const supabase = createClient();
     const router = useRouter();
 
