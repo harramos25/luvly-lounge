@@ -58,32 +58,34 @@ export default function SidebarClient({ username, avatarUrl, tier, isPremium }: 
                 </div>
 
                 {/* User Profile Snippet */}
-                <div className="mb-8 p-4 bg-zinc-900/50 rounded-xl border border-zinc-800 flex items-center gap-4">
-                    <div className={`
-        w-12 h-12 rounded-full overflow-hidden border-2 flex-shrink-0 bg-zinc-800
-        ${tier === 'plus' ? 'border-[#FFD700] shadow-[0_0_10px_#FFD700]' :
-                            tier === 'pro' ? 'border-[#C0C0C0] shadow-[0_0_10px_#C0C0C0]' :
-                                'border-zinc-700'}
-      `}>
-                        {fullAvatarUrl ? (
-                            <img src={fullAvatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-zinc-500">
-                                <User size={20} />
+                <Link href="/dashboard/profile" onClick={() => setIsOpen(false)}>
+                    <div className="mb-8 p-4 bg-zinc-900/50 rounded-xl border border-zinc-800 flex items-center gap-4 cursor-pointer hover:bg-zinc-900 transition-colors group">
+                        <div className={`
+                w-12 h-12 rounded-full overflow-hidden border-2 flex-shrink-0 bg-zinc-800 group-hover:border-[#FF6B91] transition-colors
+                ${tier === 'plus' ? 'border-[#FFD700] shadow-[0_0_10px_#FFD700]' :
+                                tier === 'pro' ? 'border-[#C0C0C0] shadow-[0_0_10px_#C0C0C0]' :
+                                    'border-zinc-700'}
+            `}>
+                            {fullAvatarUrl ? (
+                                <img src={fullAvatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                                    <User size={20} />
+                                </div>
+                            )}
+                        </div>
+                        <div className="overflow-hidden">
+                            <p className="text-white font-bold truncate text-sm group-hover:text-[#FF6B91] transition-colors">{username}</p>
+                            <div className="flex items-center gap-1">
+                                <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold
+                    ${isPremium ? 'bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white' : 'bg-zinc-800 text-zinc-400'}
+                `}>
+                                    {tier}
+                                </span>
                             </div>
-                        )}
-                    </div>
-                    <div className="overflow-hidden">
-                        <p className="text-white font-bold truncate text-sm">{username}</p>
-                        <div className="flex items-center gap-1">
-                            <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold
-            ${isPremium ? 'bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white' : 'bg-zinc-800 text-zinc-400'}
-          `}>
-                                {tier}
-                            </span>
                         </div>
                     </div>
-                </div>
+                </Link>
 
                 <nav className="flex-1 space-y-6">
                     <div>
@@ -126,14 +128,6 @@ export default function SidebarClient({ username, avatarUrl, tier, isPremium }: 
                             >
                                 <User size={18} className="group-hover:text-[#A67CFF] transition-colors" />
                                 <span>Profile</span>
-                            </Link>
-                            <Link
-                                href="/dashboard/settings"
-                                onClick={() => setIsOpen(false)}
-                                className="flex items-center gap-3 text-zinc-400 px-4 py-3 hover:text-white cursor-pointer transition-colors group"
-                            >
-                                <Settings size={18} className="group-hover:text-[#A67CFF] transition-colors" />
-                                <span>Settings</span>
                             </Link>
                         </ul>
                     </div>

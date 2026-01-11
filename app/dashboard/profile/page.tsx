@@ -1,146 +1,163 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { User, Save, Camera, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { User, Camera, Save, Loader2 } from "lucide-react";
 
-export default function ProfilePage() {
+export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [username, setUsername] = useState("");
+    const [uploading, setUploading] = useState(false);
+    const [fullName, setFullName] = useState("");
     const [bio, setBio] = useState("");
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-    const [userId, setUserId] = useState<string | null>(null);
+    const [userId, setUserId] = useState("");
 
     const supabase = createClient();
-    const router = useRouter();
 
     useEffect(() => {
-        async function loadProfile() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-            setUserId(user.id);
+        getProfile();
+    }, []);
 
+    const getProfile = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            setUserId(user.id);
+            // Fetch existing profile data
             const { data } = await supabase
                 .from("profiles")
-                .select("*")
+                .select("full_name, bio, avatar_url")
                 .eq("id", user.id)
                 .single();
 
             if (data) {
-                setUsername(data.username || "");
+                setFullName(data.full_name || "");
                 setBio(data.bio || "");
-                setAvatarUrl(data.avatar_url);
+                // If there's an avatar, use it.
+                if (data.avatar_url) {
+                    setAvatarUrl(data.avatar_url);
+                }
             }
-            setLoading(false);
         }
-        loadProfile();
-    }, [supabase]);
+        setLoading(false);
+    };
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
+
         const file = e.target.files[0];
 
-        // Upload to 'avatars' bucket (Make sure this bucket exists!)
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${userId}/${Math.random()}.${fileExt}`;
+        // 🛑 1. CHECK FILE SIZE (Limit to 2MB)
+        // 2MB = 2 * 1024 * 1024 bytes
+        if (file.size > 2 * 1024 * 1024) {
+            alert("File is too big! Please upload a file under 2MB. \n\nTip: Use a tool like TinyPNG.com to compress your image.");
+            e.target.value = ""; // Clear the input so they can retry
+            return;
+        }
 
+        setUploading(true);
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${userId}/avatar.${fileExt}`;
+
+        // 2. Upload to 'avatars' bucket
         const { error: uploadError } = await supabase.storage
             .from('avatars')
-            .upload(fileName, file);
+            .upload(filePath, file, { upsert: true });
 
         if (uploadError) {
-            alert("Error uploading avatar: " + uploadError.message);
+            alert("Error uploading: " + uploadError.message);
         } else {
-            // Update profile immediately
-            await supabase.from("profiles").update({ avatar_url: fileName }).eq("id", userId);
-            setAvatarUrl(fileName); // Optimistic update
-            router.refresh(); // Refresh sidebar
+            // 3. Get Public URL (Force a refresh timestamp so the image updates instantly)
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            const publicUrlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
+
+            // 4. Save URL to Database
+            setAvatarUrl(publicUrlWithTimestamp);
+            await supabase
+                .from("profiles")
+                .update({ avatar_url: publicUrl }) // Save clean URL in DB
+                .eq("id", userId);
         }
+        setUploading(false);
     };
 
     const handleSave = async () => {
-        setSaving(true);
+        setLoading(true);
         const { error } = await supabase
             .from("profiles")
-            .update({ username, bio })
+            .update({ full_name: fullName, bio: bio })
             .eq("id", userId);
 
-        if (error) {
-            alert("Error saving profile: " + error.message);
-        } else {
-            alert("Profile updated!");
-            router.refresh();
-        }
-        setSaving(false);
+        if (!error) alert("Profile updated!");
+        setLoading(false);
     };
 
-    if (loading) return <div className="p-8 text-white">Loading profile...</div>;
+    if (loading) return <div className="p-8 text-white">Loading settings...</div>;
 
     return (
-        <div className="p-8 max-w-3xl mx-auto">
-            <h1 className="text-3xl font-serif text-white mb-2">Edit Profile</h1>
-            <p className="text-zinc-400 mb-8">Customize how others see you in the Lounge.</p>
+        <div className="p-8 max-w-2xl mx-auto text-white">
+            <h1 className="text-3xl font-serif text-[#FF6B91] mb-8">Edit Profile</h1>
 
             <div className="bg-[#111] border border-zinc-800 rounded-2xl p-8 space-y-8">
+
                 {/* Avatar Section */}
                 <div className="flex items-center gap-6">
-                    <div className="relative w-24 h-24 rounded-full bg-zinc-800 overflow-hidden border-2 border-zinc-700 group">
-                        {avatarUrl ? (
-                            <img src={`https://sunqgymbfsenkkvoobqc.supabase.co/storage/v1/object/public/avatars/${avatarUrl}`} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-zinc-500">
-                                <User size={32} />
-                            </div>
-                        )}
-                        {/* Overlay for upload */}
-                        <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                            <Camera className="text-white" size={24} />
-                            <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                    <div className="relative group">
+                        <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-zinc-700 bg-zinc-900">
+                            {avatarUrl ? (
+                                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                                    <User size={40} />
+                                </div>
+                            )}
+                        </div>
+                        <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity rounded-full">
+                            <Camera size={24} className="text-white" />
+                            <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                         </label>
                     </div>
                     <div>
-                        <h3 className="text-white font-bold mb-1">Profile Photo</h3>
-                        <p className="text-zinc-500 text-sm">Click the image to upload a new one.</p>
+                        <h3 className="font-bold text-lg">Profile Photo</h3>
+                        <p className="text-zinc-500 text-sm">Click the image to upload. Max 2MB.</p>
+                        {uploading && <p className="text-[#FF6B91] text-xs mt-1 animate-pulse">Uploading...</p>}
                     </div>
                 </div>
 
-                {/* Form Fields */}
+                {/* Form Section */}
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Username</label>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Display Name</label>
                         <input
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className="w-full bg-[#0a0a0a] border border-zinc-700 rounded-lg p-3 text-white focus:border-[#FF6B91] outline-none"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white focus:border-[#FF6B91] outline-none"
+                            placeholder="E.g. Lux"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Bio</label>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Bio / Status</label>
                         <textarea
                             value={bio}
                             onChange={(e) => setBio(e.target.value)}
-                            rows={4}
-                            className="w-full bg-[#0a0a0a] border border-zinc-700 rounded-lg p-3 text-white focus:border-[#FF6B91] outline-none resize-none"
-                            placeholder="Tell us about yourself..."
+                            className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white focus:border-[#FF6B91] outline-none h-24 resize-none"
+                            placeholder="What's on your mind?"
                         />
                     </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex justify-end pt-4 border-t border-zinc-800">
-                    <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 flex items-center gap-2 disabled:opacity-50"
-                    >
-                        {saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
-                        Save Changes
-                    </button>
-                </div>
+                <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="bg-white text-black font-bold py-3 px-6 rounded-lg flex items-center gap-2 hover:bg-zinc-200 transition-colors"
+                >
+                    {loading ? <Loader2 className="animate-spin" /> : <Save size={18} />}
+                    Save Changes
+                </button>
+
             </div>
         </div>
     );
