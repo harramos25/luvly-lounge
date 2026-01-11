@@ -57,12 +57,30 @@ export default function AdminPage() {
     };
 
     const handleApprove = async (userId: string) => {
+        // 1. Delete Image from Storage to save space/privacy
+        const user = users.find(u => u.id === userId);
+        if (user?.verification_image_path) {
+            await supabase.storage.from("verifications").remove([user.verification_image_path]);
+        }
+
+        // 2. Update DB
         await supabase.from("profiles").update({ verification_status: "verified" }).eq("id", userId);
+
+        // 3. Update UI
         setUsers(users.filter(u => u.id !== userId));
     };
 
     const handleReject = async (userId: string) => {
+        // 1. Delete Image from Storage
+        const user = users.find(u => u.id === userId);
+        if (user?.verification_image_path) {
+            await supabase.storage.from("verifications").remove([user.verification_image_path]);
+        }
+
+        // 2. Update DB
         await supabase.from("profiles").update({ verification_status: "rejected" }).eq("id", userId);
+
+        // 3. Update UI
         setUsers(users.filter(u => u.id !== userId));
     };
 

@@ -47,7 +47,9 @@ export default function DashboardLayout({
 
             if (data) {
                 // 🔒 CHECK 1: ARE THEY VERIFIED?
+                console.log("Gatekeeper Check:", data.verification_status);
                 if (data.verification_status !== 'verified') {
+                    console.log("Redirecting to /verify...");
                     router.push('/verify');
                     return;
                 }
