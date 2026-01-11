@@ -1,53 +1,144 @@
-import InterestFilter from "@/components/InterestFilter";
-import { MessageCircle } from "lucide-react";
+"use client";
 
-export default function DashboardPage() {
+import { useEffect, useState, useRef } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { Send, Image as ImageIcon, Smile } from "lucide-react";
+import { motion } from "framer-motion";
+
+type Message = {
+    id: string;
+    content: string;
+    user_id: string;
+    created_at: string;
+    profile_id: string;
+};
+
+export default function Dashboard() {
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [newMessage, setNewMessage] = useState("");
+    const [userId, setUserId] = useState("");
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const supabase = createClient();
+
+    // 1. Load Initial Data & Subscribe to Realtime
+    useEffect(() => {
+        const getUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) setUserId(user.id);
+        };
+        getUser();
+
+        // Fetch existing messages
+        const fetchMessages = async () => {
+            const { data } = await supabase
+                .from("messages")
+                .select("*")
+                .order("created_at", { ascending: true });
+            if (data) setMessages(data);
+        };
+        fetchMessages();
+
+        // LISTEN FOR NEW MESSAGES (The Magic Part)
+        const channel = supabase
+            .channel("realtime messages")
+            .on(
+                "postgres_changes",
+                { event: "INSERT", schema: "public", table: "messages" },
+                (payload) => {
+                    setMessages((current) => [...current, payload.new as Message]);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
+    // Auto-scroll to bottom when message arrives
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
+
+    // 2. Send Message Function
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMessage.trim()) return;
+
+        // Optimistic UI: Clear input immediately
+        const textToSend = newMessage;
+        setNewMessage("");
+
+        const { error } = await supabase.from("messages").insert({
+            content: textToSend,
+            user_id: userId,
+        });
+
+        if (error) console.error("Error sending:", error);
+    };
+
     return (
-        <div className="p-8 max-w-5xl mx-auto">
-            {/* Header */}
-            <div className="mb-10">
-                <h1 className="text-4xl font-serif text-white mb-2">
-                    Who are you looking for?
-                </h1>
-                <p className="text-zinc-400">Select tags to find your vibe.</p>
-            </div>
-
-            {/* Filters */}
-            <div className="mb-12">
-                <InterestFilter />
-            </div>
-
-            {/* Main Action */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                {/* Action Card */}
-                <div className="bg-gradient-to-br from-[#111] to-[#1a1a1a] p-8 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF6B91]/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-[#FF6B91]/20"></div>
-
-                    <h2 className="text-2xl font-bold text-white mb-4 relative z-10">Start a Random Chat</h2>
-                    <p className="text-zinc-400 mb-8 relative z-10">
-                        Match with verified women based on your selected interests. Safe, fun, and premium.
+        <div className="flex flex-col h-screen bg-[#0a0a0a] text-white">
+            {/* HEADER */}
+            <div className="h-16 border-b border-zinc-800 flex items-center px-6 bg-[#0a0a0a]/50 backdrop-blur-md sticky top-0 z-10">
+                <div>
+                    <h1 className="font-serif text-xl bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] bg-clip-text text-transparent">
+                        General Lounge
+                    </h1>
+                    <p className="text-xs text-zinc-500">
+                        <span className="w-2 h-2 bg-green-500 rounded-full inline-block mr-1"></span>
+                        {messages.length} messages loaded
                     </p>
+                </div>
+            </div>
 
-                    <button className="w-full bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white font-bold py-4 rounded-xl shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-3 relative z-10">
-                        <MessageCircle className="fill-current" />
-                        Chat with Stranger
+            {/* CHAT AREA */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {messages.map((msg) => {
+                    const isMe = msg.user_id === userId;
+                    return (
+                        <motion.div
+                            key={msg.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                        >
+                            <div
+                                className={`max-w-[70%] p-4 rounded-2xl text-sm leading-relaxed ${isMe
+                                        ? "bg-gradient-to-br from-[#FF6B91] to-[#FF8E72] text-black font-medium rounded-tr-none"
+                                        : "bg-[#1A1A1A] border border-zinc-800 text-zinc-200 rounded-tl-none"
+                                    }`}
+                            >
+                                {msg.content}
+                            </div>
+                        </motion.div>
+                    );
+                })}
+                <div ref={messagesEndRef} />
+            </div>
+
+            {/* INPUT AREA */}
+            <div className="p-4 bg-[#0a0a0a] border-t border-zinc-800">
+                <form onSubmit={handleSendMessage} className="flex gap-2 max-w-4xl mx-auto">
+                    <button type="button" className="p-3 text-zinc-400 hover:text-[#FF6B91] transition-colors">
+                        <ImageIcon size={20} />
                     </button>
-                </div>
 
-                {/* Stats / Info Card */}
-                <div className="grid grid-rows-2 gap-6">
-                    <div className="bg-[#111] p-6 rounded-2xl border border-zinc-800 flex flex-col justify-center">
-                        <h3 className="text-zinc-500 text-xs uppercase tracking-widest font-bold mb-1">Online Now</h3>
-                        <p className="text-4xl font-serif text-[#A67CFF]">128 <span className="text-base text-zinc-600 font-sans">users</span></p>
-                    </div>
-                    <div className="bg-[#111] p-6 rounded-2xl border border-zinc-800 flex flex-col justify-center">
-                        <h3 className="text-zinc-500 text-xs uppercase tracking-widest font-bold mb-1">Credits Remaining</h3>
-                        <div className="flex items-end gap-2">
-                            <p className="text-4xl font-serif text-white">5</p>
-                            <p className="text-sm text-zinc-500 mb-1">/ 5 free chats</p>
-                        </div>
-                    </div>
-                </div>
+                    <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Type a message..."
+                        className="flex-1 bg-[#111] border border-zinc-800 rounded-full px-6 py-3 text-white focus:outline-none focus:border-[#FF6B91] transition-colors"
+                    />
+
+                    <button
+                        type="submit"
+                        className="bg-[#FF6B91] hover:bg-[#ff5580] text-black p-3 rounded-full transition-transform active:scale-95"
+                    >
+                        <Send size={20} />
+                    </button>
+                </form>
             </div>
         </div>
     );
