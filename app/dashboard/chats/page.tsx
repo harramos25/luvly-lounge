@@ -89,10 +89,45 @@ export default function ChatsPage() {
         setLoading(false);
     };
 
-    const handleAccept = async (requestId: string) => {
+    const handleAccept = async (requestId: string, senderId: string) => {
+        // 1. Accept Friend
         await supabase.from("friends").update({ status: 'accepted' }).eq("id", requestId);
-        setRequests(prev => prev.filter(r => r.id !== requestId)); // Remove from UI
-        alert("Friend Request Accepted! 🎉");
+
+        // 2. Remove from UI
+        setRequests(prev => prev.filter(r => r.id !== requestId));
+
+        // 3. Ensure Conversation Exists (So they appear in Inbox immediately)
+        const { data: myChats } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('user_id', userId);
+
+        const myChatIds = myChats?.map(c => c.conversation_id) || [];
+
+        if (myChatIds.length > 0) {
+            const { data: existing } = await supabase
+                .from('conversation_participants')
+                .select('conversation_id')
+                .eq('user_id', senderId)
+                .in('conversation_id', myChatIds)
+                .single();
+
+            if (existing) {
+                alert("Friend Added! Chat available in Inbox. 🎉");
+                return;
+            }
+        }
+
+        // If no existing chat, create one!
+        const { data: newChat } = await supabase.from('conversations').insert({}).select().single();
+        if (newChat) {
+            await supabase.from('conversation_participants').insert([
+                { conversation_id: newChat.id, user_id: userId },
+                { conversation_id: newChat.id, user_id: senderId }
+            ]);
+        }
+
+        alert("Friend Added! New chat created in Inbox. 🎉");
     };
 
     const handleDecline = async (requestId: string) => {
@@ -141,7 +176,9 @@ export default function ChatsPage() {
             {/* CONTENT AREA */}
             <div className="flex-1 overflow-y-auto space-y-2">
                 {loading ? (
-                    <p className="text-zinc-500 text-center mt-10">Loading...</p>
+                    <div className="flex flex-col items-center justify-center h-40">
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FF6B91]"></div>
+                    </div>
                 ) : activeTab === "inbox" ? (
                     // --- INBOX VIEW ---
                     conversations.length === 0 ? (
@@ -155,16 +192,19 @@ export default function ChatsPage() {
                             return (
                                 <Link key={chat.id} href={`/dashboard/chats/${chat.id}`}>
                                     <div className="flex items-center gap-4 p-4 rounded-2xl hover:bg-[#111] transition-colors cursor-pointer group">
-                                        <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700 group-hover:border-zinc-500 transition-colors">
+                                        <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700 group-hover:border-zinc-500 transition-colors shrink-0">
                                             {partner?.avatar_url ? (
                                                 <img src={partner.avatar_url} className="w-full h-full object-cover" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-zinc-600"><User size={20} /></div>
                                             )}
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-white">{partner?.full_name || "Unknown"}</h3>
-                                            <p className="text-xs text-zinc-500">Active {new Date(chat.updated_at).toLocaleDateString()}</p>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-bold text-white truncate">{partner?.full_name || "Unknown"}</h3>
+                                            <p className="text-xs text-zinc-500 truncate">Tap to chat</p>
+                                        </div>
+                                        <div className="text-xs text-zinc-600">
+                                            {new Date(chat.updated_at).toLocaleDateString()}
                                         </div>
                                     </div>
                                 </Link>
@@ -182,8 +222,12 @@ export default function ChatsPage() {
                         requests.map((req: any) => (
                             <div key={req.id} className="flex items-center justify-between p-4 bg-[#111] rounded-2xl border border-zinc-800">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">
-                                        {req.profiles?.avatar_url && <img src={req.profiles.avatar_url} className="w-full h-full object-cover" />}
+                                    <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden shrink-0">
+                                        {req.profiles?.avatar_url ? (
+                                            <img src={req.profiles.avatar_url} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <User className="w-5 h-5 m-2.5 text-zinc-500" />
+                                        )}
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-sm text-white">{req.profiles?.full_name}</h3>
@@ -194,7 +238,7 @@ export default function ChatsPage() {
                                     <button onClick={() => handleDecline(req.id)} className="p-2 bg-zinc-800 rounded-full hover:bg-red-900/50 text-zinc-400 hover:text-red-400 transition-colors">
                                         <X size={18} />
                                     </button>
-                                    <button onClick={() => handleAccept(req.id)} className="p-2 bg-[#FF6B91] rounded-full hover:bg-[#ff5580] text-black transition-colors">
+                                    <button onClick={() => handleAccept(req.id, req.user_a)} className="p-2 bg-[#FF6B91] rounded-full hover:bg-[#ff5580] text-black transition-colors">
                                         <Check size={18} />
                                     </button>
                                 </div>
