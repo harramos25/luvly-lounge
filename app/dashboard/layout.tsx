@@ -40,11 +40,24 @@ export default function DashboardLayout({
             // Fetch the "Real" Name and Avatar from Database
             const { data } = await supabase
                 .from("profiles")
-                .select("full_name, avatar_url")
+                .select("full_name, avatar_url, verification_status")
                 .eq("id", user.id)
                 .single();
 
             if (data) {
+                // 🔒 CHECK 1: ARE THEY VERIFIED?
+                if (data.verification_status !== 'verified') {
+                    router.push('/verify');
+                    return;
+                }
+
+                // 🔒 CHECK 2: HAVE THEY DONE ONBOARDING?
+                // If they have no name, they skipped the wizard. Force them back.
+                if (!data.full_name) {
+                    router.push('/onboarding');
+                    return;
+                }
+
                 setProfile({
                     full_name: data.full_name || user.email?.split('@')[0] || "User",
                     avatar_url: data.avatar_url,
@@ -114,8 +127,8 @@ export default function DashboardLayout({
                                 key={item.name}
                                 href={item.href}
                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive
-                                        ? "bg-[#FF6B91]/10 text-[#FF6B91] font-medium"
-                                        : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                                    ? "bg-[#FF6B91]/10 text-[#FF6B91] font-medium"
+                                    : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
                                     }`}
                             >
                                 <item.icon size={18} />
@@ -135,8 +148,8 @@ export default function DashboardLayout({
                                 key={item.name}
                                 href={item.href}
                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive
-                                        ? "bg-white text-black font-bold"
-                                        : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                                    ? "bg-white text-black font-bold"
+                                    : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
                                     }`}
                             >
                                 <item.icon size={18} />
