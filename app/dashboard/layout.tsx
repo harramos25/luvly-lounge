@@ -4,24 +4,25 @@ import Sidebar from "@/components/Sidebar";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
     const supabase = await createClient();
+
+    // 1. Check Auth
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        redirect("/login");
+    }
 
-    if (!user) redirect("/login");
-
-    // CHECK VERIFICATION STATUS
+    // 2. Check Profile & Verification
     const { data: profile } = await supabase
         .from("profiles")
-        .select("verification_status")
+        .select("verification_status, verification_image_path")
         .eq("id", user.id)
         .single();
 
-    // If they are NOT verified, kick them to /verify
-    // Redirect if they have NO status or 'rejected'.
-    if (!profile || profile.verification_status === 'rejected') {
+    // If profile doesn't exist, or they were rejected, OR they haven't uploaded a selfie yet...
+    // GATE THEM!
+    if (!profile || profile.verification_status === 'rejected' || !profile.verification_image_path) {
         redirect("/verify");
     }
-
-    // Note: 'pending' status users are allowed in, but might have restricted access in the future.
 
     return (
         <div className="flex h-screen bg-[#0a0a0a] overflow-hidden">

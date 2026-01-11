@@ -17,8 +17,17 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true);
 
-        if (!email || !password) {
+        const cleanEmail = email.trim();
+
+        if (!cleanEmail || !password) {
             alert("Please enter both email and password.");
+            setLoading(false);
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(cleanEmail)) {
+            alert("Please enter a valid email address.");
             setLoading(false);
             return;
         }
@@ -26,7 +35,7 @@ export default function LoginPage() {
         if (mode === 'login') {
             // LOGIN LOGIC
             const { error } = await supabase.auth.signInWithPassword({
-                email,
+                email: cleanEmail,
                 password,
             });
             if (error) {
@@ -37,7 +46,7 @@ export default function LoginPage() {
         } else {
             // SIGNUP LOGIC
             const { error } = await supabase.auth.signUp({
-                email,
+                email: cleanEmail,
                 password,
             });
             if (error) {
