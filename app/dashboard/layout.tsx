@@ -8,9 +8,9 @@ import {
     MessageCircle,
     Clock,
     Settings,
-    User,
     LogOut,
-    Crown
+    Crown,
+    Zap
 } from "lucide-react";
 
 export default function DashboardLayout({
