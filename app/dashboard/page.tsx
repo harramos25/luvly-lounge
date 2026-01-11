@@ -75,8 +75,35 @@ export default function Dashboard() {
             )
             .subscribe();
 
+        // 3. LISTEN FOR PROFILE UPDATES (The "Live Change" Logic)
+        const profileChannel = supabase
+            .channel("realtime profiles")
+            .on(
+                "postgres_changes",
+                { event: "UPDATE", schema: "public", table: "profiles" },
+                (payload) => {
+                    const updatedProfile = payload.new;
+                    setMessages((current) =>
+                        current.map((msg) => {
+                            if (msg.user_id === updatedProfile.id) {
+                                return {
+                                    ...msg,
+                                    profiles: {
+                                        full_name: updatedProfile.full_name,
+                                        avatar_url: updatedProfile.avatar_url,
+                                    },
+                                };
+                            }
+                            return msg;
+                        })
+                    );
+                }
+            )
+            .subscribe();
+
         return () => {
             supabase.removeChannel(channel);
+            supabase.removeChannel(profileChannel);
         };
     }, []);
 
