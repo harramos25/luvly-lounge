@@ -3,10 +3,20 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
-import { Send, MoreVertical, ShieldAlert, UserPlus, ArrowLeft, XCircle } from "lucide-react";
+// 🛡️ SAFETY IMPORTS: All icons included so Vercel won't crash
+import {
+    Send,
+    MoreVertical,
+    ShieldAlert,
+    UserPlus,
+    ArrowLeft,
+    XCircle,
+    Check,
+    MessageCircle
+} from "lucide-react";
 
 export default function ChatRoom() {
-    const { id } = useParams(); // Get conversation ID from URL
+    const { id } = useParams();
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [partner, setPartner] = useState<any>(null);
@@ -23,7 +33,7 @@ export default function ChatRoom() {
             if (!user) return;
             setUserId(user.id);
 
-            // 1. Fetch Chat Info & Partner Profile
+            // 1. Fetch Chat Info & Partner
             const { data: conv } = await supabase
                 .from("conversations")
                 .select(`
@@ -37,11 +47,10 @@ export default function ChatRoom() {
                 .single();
 
             if (conv) {
-                // Find the OTHER person (not me)
-                const otherParticipant = conv.conversation_participants.find((p: any) => p.user_id !== user.id);
-                if (otherParticipant) {
-                    setPartner(otherParticipant.profiles);
-                    checkFriendStatus(user.id, otherParticipant.user_id);
+                const other = conv.conversation_participants.find((p: any) => p.user_id !== user.id);
+                if (other) {
+                    setPartner(other.profiles);
+                    checkFriendStatus(user.id, other.user_id);
                 }
             }
 
@@ -60,21 +69,15 @@ export default function ChatRoom() {
                 .on(
                     "postgres_changes",
                     { event: "INSERT", schema: "public", table: "direct_messages", filter: `conversation_id=eq.${id}` },
-                    (payload) => {
-                        setMessages((prev) => [...prev, payload.new]);
-                    }
+                    (payload) => setMessages((prev) => [...prev, payload.new])
                 )
                 .subscribe();
 
-            return () => {
-                supabase.removeChannel(channel);
-            };
+            return () => { supabase.removeChannel(channel); };
         };
-
         init();
     }, [id]);
 
-    // Auto-scroll to bottom
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
@@ -91,7 +94,6 @@ export default function ChatRoom() {
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
-
         const text = newMessage;
         setNewMessage("");
 
@@ -100,10 +102,11 @@ export default function ChatRoom() {
             sender_id: userId,
             content: text
         });
-
-        // Update conversation timestamp (so it goes to top of list)
+        // Update timestamp to bump chat to top of list
         await supabase.from("conversations").update({ updated_at: new Date() }).eq("id", id);
     };
+
+    // --- BUTTON ACTIONS ---
 
     const handleAddFriend = async () => {
         if (!partner) return;
@@ -114,7 +117,7 @@ export default function ChatRoom() {
 
     const handleReport = async () => {
         if (!partner) return;
-        const reason = prompt("Why are you reporting this user? (Harassment, Fake, etc)");
+        const reason = prompt("⚠️ REPORT USER\nWhy are you reporting this user? (Harassment, Fake, etc)");
         if (reason) {
             await supabase.from("reports").insert({
                 reporter_id: userId,
@@ -122,12 +125,13 @@ export default function ChatRoom() {
                 reason: reason
             });
             alert("Report submitted. An admin will review this.");
-            router.push('/dashboard/match'); // Leave chat immediately for safety
+            router.push('/dashboard/match'); // Instant Redirect for safety
         }
     };
 
     const handleSkip = () => {
-        if (confirm("Leave this chat?")) {
+        // "Skip" means leave this chat and go back to find a NEW one.
+        if (confirm("Leave this conversation?")) {
             router.push('/dashboard/match');
         }
     };
@@ -138,7 +142,7 @@ export default function ChatRoom() {
             {/* HEADER */}
             <div className="h-16 border-b border-zinc-800 flex items-center justify-between px-4 bg-[#111]">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.back()} className="p-2 hover:bg-zinc-800 rounded-full">
+                    <button onClick={() => router.push('/dashboard/match')} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400">
                         <ArrowLeft size={20} />
                     </button>
 
@@ -147,13 +151,13 @@ export default function ChatRoom() {
                     </div>
                     <div>
                         <h2 className="font-bold text-sm">{partner?.full_name || "Loading..."}</h2>
-                        {friendStatus === 'pending' && <span className="text-[10px] text-zinc-500">Request Sent</span>}
+                        {friendStatus === 'pending' && <span className="text-[10px] text-zinc-500 flex items-center gap-1"><Check size={10} /> Request Sent</span>}
                         {friendStatus === 'accepted' && <span className="text-[10px] text-green-500 font-bold">Friend</span>}
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Add Friend Button (Only show if not friends yet) */}
+                    {/* ADD FRIEND (Only if not friends) */}
                     {!friendStatus && (
                         <button
                             onClick={handleAddFriend}
@@ -164,7 +168,7 @@ export default function ChatRoom() {
                         </button>
                     )}
 
-                    {/* Report Button */}
+                    {/* REPORT (Shield) */}
                     <button
                         onClick={handleReport}
                         className="p-2 text-zinc-500 hover:text-red-500 transition-colors"
@@ -173,22 +177,23 @@ export default function ChatRoom() {
                         <ShieldAlert size={18} />
                     </button>
 
-                    {/* Skip Button */}
+                    {/* SKIP (Start New Chat) */}
                     <button
                         onClick={handleSkip}
-                        className="px-3 py-1.5 bg-zinc-800 text-xs font-bold rounded-lg hover:bg-zinc-700 ml-2 transition-colors"
+                        className="px-4 py-1.5 bg-zinc-800 text-xs font-bold rounded-lg hover:bg-zinc-700 ml-2 transition-colors flex items-center gap-2"
                     >
-                        Skip
+                        <XCircle size={14} /> Skip
                     </button>
                 </div>
             </div>
 
-            {/* MESSAGES AREA */}
+            {/* MESSAGES */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-black">
                 {messages.length === 0 && (
-                    <p className="text-zinc-600 text-center text-sm mt-10">
-                        This is the start of your private conversation.<br />Say hi! 👋
-                    </p>
+                    <div className="text-center mt-10 opacity-50">
+                        <MessageCircle className="mx-auto mb-2" size={32} />
+                        <p className="text-sm">Start the conversation!</p>
+                    </div>
                 )}
 
                 {messages.map((msg) => {
@@ -207,18 +212,18 @@ export default function ChatRoom() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* INPUT AREA */}
+            {/* INPUT */}
             <form onSubmit={handleSendMessage} className="p-4 bg-black border-t border-zinc-800 flex gap-2">
                 <input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
-                    className="flex-1 bg-[#111] border border-zinc-800 rounded-full px-5 py-3 text-white focus:border-[#FF6B91] outline-none transition-colors placeholder-zinc-600"
+                    className="flex-1 bg-[#111] border border-zinc-800 rounded-full px-5 py-3 text-white focus:border-[#FF6B91] outline-none transition-colors"
                 />
                 <button
                     type="submit"
                     disabled={!newMessage.trim()}
-                    className="p-3 bg-[#FF6B91] rounded-full text-black hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                    className="p-3 bg-[#FF6B91] rounded-full text-black hover:scale-105 transition-transform disabled:opacity-50"
                 >
                     <Send size={20} className={newMessage.trim() ? "ml-0.5" : ""} />
                 </button>
