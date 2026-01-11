@@ -14,6 +14,10 @@ export default function LoginPage() {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!email || !password) {
+            alert("Please enter both email and password.");
+            return;
+        }
         setLoading(true);
 
         // 1. Try to Log In
@@ -32,6 +36,10 @@ export default function LoginPage() {
     };
 
     const handleSignUp = async () => {
+        if (!email || !password) {
+            alert("Please enter an email and password to create an account.");
+            return;
+        }
         setLoading(true);
         // 1. Create User
         const { error } = await supabase.auth.signUp({
