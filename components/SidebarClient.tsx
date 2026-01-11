@@ -45,9 +45,10 @@ export default function SidebarClient({ username, avatarUrl, tier, isPremium }: 
             <aside className={`
         fixed left-0 top-0 h-screen bg-[#111] border-r border-zinc-800 
         transition-transform duration-300 ease-in-out z-50
-        w-72 p-6 flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800
+        w-72 p-6 flex flex-col overflow-y-auto 
+        [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        md:translate-x-0 md:static md:h-screen
+        md:translate-x-0
       `}>
                 {/* LOGO (Hidden on mobile inside drawer to avoid dup, or keep it) */}
                 <div className="mb-8 hidden md:block">
@@ -96,14 +97,22 @@ export default function SidebarClient({ username, avatarUrl, tier, isPremium }: 
                                 <Crown size={18} className="text-[#FF6B91]" />
                                 <span className="font-bold">Lounge</span>
                             </Link>
-                            <li className="flex items-center gap-3 text-zinc-400 px-4 py-3 hover:text-white cursor-pointer transition-colors group">
+                            <Link
+                                href="/dashboard/chats"
+                                onClick={() => setIsOpen(false)}
+                                className="flex items-center gap-3 text-zinc-400 px-4 py-3 hover:text-white cursor-pointer transition-colors group"
+                            >
                                 <MessageSquare size={18} className="group-hover:text-[#A67CFF] transition-colors" />
                                 <span>Chats</span>
-                            </li>
-                            <li className="flex items-center gap-3 text-zinc-400 px-4 py-3 hover:text-white cursor-pointer transition-colors group">
+                            </Link>
+                            <Link
+                                href="/dashboard/history"
+                                onClick={() => setIsOpen(false)}
+                                className="flex items-center gap-3 text-zinc-400 px-4 py-3 hover:text-white cursor-pointer transition-colors group"
+                            >
                                 <History size={18} className="group-hover:text-[#A67CFF] transition-colors" />
                                 <span>History</span>
-                            </li>
+                            </Link>
                         </ul>
                     </div>
 
@@ -118,10 +127,14 @@ export default function SidebarClient({ username, avatarUrl, tier, isPremium }: 
                                 <User size={18} className="group-hover:text-[#A67CFF] transition-colors" />
                                 <span>Profile</span>
                             </Link>
-                            <li className="flex items-center gap-3 text-zinc-400 px-4 py-3 hover:text-white cursor-pointer transition-colors group">
+                            <Link
+                                href="/dashboard/settings"
+                                onClick={() => setIsOpen(false)}
+                                className="flex items-center gap-3 text-zinc-400 px-4 py-3 hover:text-white cursor-pointer transition-colors group"
+                            >
                                 <Settings size={18} className="group-hover:text-[#A67CFF] transition-colors" />
                                 <span>Settings</span>
-                            </li>
+                            </Link>
                         </ul>
                     </div>
                 </nav>
