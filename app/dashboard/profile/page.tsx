@@ -50,30 +50,41 @@ export default function SettingsPage() {
         // 2MB = 2 * 1024 * 1024 bytes
         if (file.size > 2 * 1024 * 1024) {
             alert("File is too big! Please upload a file under 2MB. \n\nTip: Use a tool like TinyPNG.com to compress your image.");
-            e.target.value = ""; // Clear the input so they can retry
+            e.target.value = ""; // Clear the input
             return;
         }
 
         setUploading(true);
         const fileExt = file.name.split('.').pop();
-        const filePath = `${userId}/avatar.${fileExt}`;
+        const newFilePath = `${userId}/avatar.${fileExt}`;
 
-        // 2. Upload to 'avatars' bucket
+        // 2. CLEANUP: Find and Delete OLD files first
+        // We list all files in the user's folder and delete them to prevent clutter.
+        const { data: oldFiles } = await supabase.storage
+            .from('avatars')
+            .list(userId); // List everything in user's folder
+
+        if (oldFiles && oldFiles.length > 0) {
+            const filesToRemove = oldFiles.map((x) => `${userId}/${x.name}`);
+            await supabase.storage.from('avatars').remove(filesToRemove);
+        }
+
+        // 3. UPLOAD NEW FILE
         const { error: uploadError } = await supabase.storage
             .from('avatars')
-            .upload(filePath, file, { upsert: true });
+            .upload(newFilePath, file, { upsert: true });
 
         if (uploadError) {
             alert("Error uploading: " + uploadError.message);
         } else {
-            // 3. Get Public URL (Force a refresh timestamp so the image updates instantly)
+            // 4. Get Public URL (Force a refresh timestamp so the image updates instantly)
             const { data: { publicUrl } } = supabase.storage
                 .from('avatars')
-                .getPublicUrl(filePath);
+                .getPublicUrl(newFilePath);
 
             const publicUrlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
 
-            // 4. Save URL to Database
+            // 5. Save URL to Database
             setAvatarUrl(publicUrlWithTimestamp);
             await supabase
                 .from("profiles")

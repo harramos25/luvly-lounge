@@ -129,6 +129,14 @@ export default function SidebarClient({ username, avatarUrl, tier, isPremium }: 
                                 <User size={18} className="group-hover:text-[#A67CFF] transition-colors" />
                                 <span>Profile</span>
                             </Link>
+                            <Link
+                                href="/dashboard/settings"
+                                onClick={() => setIsOpen(false)}
+                                className="flex items-center gap-3 text-zinc-400 px-4 py-3 hover:text-white cursor-pointer transition-colors group"
+                            >
+                                <Settings size={18} className="group-hover:text-[#A67CFF] transition-colors" />
+                                <span>Settings</span>
+                            </Link>
                         </ul>
                     </div>
                 </nav>
