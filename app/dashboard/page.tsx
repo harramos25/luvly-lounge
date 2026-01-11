@@ -32,20 +32,44 @@ export default function Dashboard() {
         };
         getUser();
 
+        // Fetch existing messages (MANUAL JOIN FIX)
         const fetchMessages = async () => {
-            // THE MAGIC JOIN: We ask for messages AND the sender's profile info
-            const { data } = await supabase
+            // 1. Fetch raw messages first
+            const { data: rawMessages, error } = await supabase
                 .from("messages")
-                .select(`
-          *,
-          profiles (
-            full_name,
-            avatar_url
-          )
-        `)
+                .select("*")
                 .order("created_at", { ascending: true });
 
-            if (data) setMessages(data as any);
+            if (error || !rawMessages) {
+                console.error("Error fetching messages:", error);
+                return;
+            }
+
+            // 2. Collect all unique User IDs from the messages
+            const userIds = Array.from(new Set(rawMessages.map((m) => m.user_id)));
+
+            if (userIds.length === 0) {
+                setMessages(rawMessages as any);
+                return;
+            }
+
+            // 3. Fetch profiles for those users
+            const { data: profiles } = await supabase
+                .from("profiles")
+                .select("id, full_name, avatar_url")
+                .in("id", userIds);
+
+            // 4. Create a quick lookup map (User ID -> Profile Data)
+            const profileMap = new Map();
+            profiles?.forEach((p) => profileMap.set(p.id, p));
+
+            // 5. Merge messages with their profile data
+            const mergedMessages = rawMessages.map((msg) => ({
+                ...msg,
+                profiles: profileMap.get(msg.user_id) || null,
+            }));
+
+            setMessages(mergedMessages);
         };
 
         fetchMessages();
