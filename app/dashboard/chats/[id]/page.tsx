@@ -37,7 +37,7 @@ export default function ChatRoom() {
                 .single();
 
             if (conv) {
-                // Find the OTHER person
+                // Find the OTHER person (not me)
                 const otherParticipant = conv.conversation_participants.find((p: any) => p.user_id !== user.id);
                 if (otherParticipant) {
                     setPartner(otherParticipant.profiles);
@@ -74,7 +74,7 @@ export default function ChatRoom() {
         init();
     }, [id]);
 
-    // Auto-scroll
+    // Auto-scroll to bottom
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
@@ -109,7 +109,7 @@ export default function ChatRoom() {
         if (!partner) return;
         await supabase.from("friends").insert({ user_a: userId, user_b: partner.id, status: 'pending' });
         setFriendStatus('pending');
-        alert("Friend request sent!");
+        alert("Friend request sent! ✨");
     };
 
     const handleReport = async () => {
@@ -122,12 +122,12 @@ export default function ChatRoom() {
                 reason: reason
             });
             alert("Report submitted. An admin will review this.");
-            router.push('/dashboard/match'); // Leave chat immediately
+            router.push('/dashboard/match'); // Leave chat immediately for safety
         }
     };
 
     const handleSkip = () => {
-        if (confirm("Are you sure you want to leave?")) {
+        if (confirm("Leave this chat?")) {
             router.push('/dashboard/match');
         }
     };
@@ -142,38 +142,62 @@ export default function ChatRoom() {
                         <ArrowLeft size={20} />
                     </button>
 
-                    <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
                         {partner?.avatar_url && <img src={partner.avatar_url} className="w-full h-full object-cover" />}
                     </div>
                     <div>
                         <h2 className="font-bold text-sm">{partner?.full_name || "Loading..."}</h2>
                         {friendStatus === 'pending' && <span className="text-[10px] text-zinc-500">Request Sent</span>}
-                        {friendStatus === 'accepted' && <span className="text-[10px] text-green-500">Friend</span>}
+                        {friendStatus === 'accepted' && <span className="text-[10px] text-green-500 font-bold">Friend</span>}
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* Add Friend Button (Only show if not friends yet) */}
                     {!friendStatus && (
-                        <button onClick={handleAddFriend} className="p-2 bg-[#FF6B91]/10 text-[#FF6B91] rounded-full hover:bg-[#FF6B91]/20" title="Add Friend">
+                        <button
+                            onClick={handleAddFriend}
+                            className="p-2 bg-[#FF6B91]/10 text-[#FF6B91] rounded-full hover:bg-[#FF6B91]/20 transition-colors"
+                            title="Add Friend"
+                        >
                             <UserPlus size={18} />
                         </button>
                     )}
-                    <button onClick={handleReport} className="p-2 text-zinc-500 hover:text-red-500 transition-colors" title="Report">
+
+                    {/* Report Button */}
+                    <button
+                        onClick={handleReport}
+                        className="p-2 text-zinc-500 hover:text-red-500 transition-colors"
+                        title="Report User"
+                    >
                         <ShieldAlert size={18} />
                     </button>
-                    <button onClick={handleSkip} className="px-3 py-1.5 bg-zinc-800 text-xs rounded-lg hover:bg-zinc-700 ml-2">
+
+                    {/* Skip Button */}
+                    <button
+                        onClick={handleSkip}
+                        className="px-3 py-1.5 bg-zinc-800 text-xs font-bold rounded-lg hover:bg-zinc-700 ml-2 transition-colors"
+                    >
                         Skip
                     </button>
                 </div>
             </div>
 
-            {/* MESSAGES */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* MESSAGES AREA */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-black">
+                {messages.length === 0 && (
+                    <p className="text-zinc-600 text-center text-sm mt-10">
+                        This is the start of your private conversation.<br />Say hi! 👋
+                    </p>
+                )}
+
                 {messages.map((msg) => {
                     const isMe = msg.sender_id === userId;
                     return (
                         <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${isMe ? "bg-[#FF6B91] text-black" : "bg-[#1A1A1A] border border-zinc-800"
+                            <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm leading-relaxed ${isMe
+                                    ? "bg-[#FF6B91] text-black font-medium rounded-tr-sm"
+                                    : "bg-[#1A1A1A] border border-zinc-800 text-zinc-200 rounded-tl-sm"
                                 }`}>
                                 {msg.content}
                             </div>
@@ -183,16 +207,20 @@ export default function ChatRoom() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* INPUT */}
+            {/* INPUT AREA */}
             <form onSubmit={handleSendMessage} className="p-4 bg-black border-t border-zinc-800 flex gap-2">
                 <input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Say something nice..."
-                    className="flex-1 bg-[#111] border border-zinc-800 rounded-full px-4 py-3 focus:border-[#FF6B91] outline-none"
+                    placeholder="Type a message..."
+                    className="flex-1 bg-[#111] border border-zinc-800 rounded-full px-5 py-3 text-white focus:border-[#FF6B91] outline-none transition-colors placeholder-zinc-600"
                 />
-                <button type="submit" disabled={!newMessage.trim()} className="p-3 bg-[#FF6B91] rounded-full text-black hover:scale-105 transition-transform">
-                    <Send size={20} />
+                <button
+                    type="submit"
+                    disabled={!newMessage.trim()}
+                    className="p-3 bg-[#FF6B91] rounded-full text-black hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                >
+                    <Send size={20} className={newMessage.trim() ? "ml-0.5" : ""} />
                 </button>
             </form>
 
