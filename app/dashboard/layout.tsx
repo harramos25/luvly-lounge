@@ -27,6 +27,8 @@ export default function DashboardLayout({
         avatar_url: null as string | null,
         tier: "Free"
     });
+    const [counts, setCounts] = useState({ unread: 0, requests: 0 }); // 🔴 BADGES
+
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [showUpgrade, setShowUpgrade] = useState(false);
     const [checking, setChecking] = useState(true); // 🔒 GATEKEEPER STATE
@@ -79,6 +81,39 @@ export default function DashboardLayout({
                     // @ts-ignore
                     status: data.verification_status
                 });
+
+                // 🔴 FETCH BADGES (Requests & Unread)
+                // 1. Pending Requests (User B = Me)
+                const { count: reqCount } = await supabase
+                    .from("friends")
+                    .select("*", { count: 'exact', head: true })
+                    .eq("user_b", user.id)
+                    .eq("status", "pending");
+
+                // 2. Unread Messages
+                // Get my conversations first
+                const { data: myConvs } = await supabase
+                    .from("conversation_participants")
+                    .select("conversation_id")
+                    .eq("user_id", user.id);
+
+                let unreadFn = 0;
+                if (myConvs && myConvs.length > 0) {
+                    const ids = myConvs.map(c => c.conversation_id);
+                    const { count } = await supabase
+                        .from("direct_messages")
+                        .select("*", { count: 'exact', head: true })
+                        .in("conversation_id", ids)
+                        .neq("sender_id", user.id) // Not sent by me
+                        .eq("is_read", false);     // Not read yet
+                    if (count) unreadFn = count;
+                }
+
+                setCounts({
+                    requests: reqCount || 0,
+                    unread: unreadFn || 0
+                });
+
                 setChecking(false); // Reveal Dashboard
             } else {
                 // Profile doesn't exist yet? Likely a race condition or error.
@@ -89,6 +124,8 @@ export default function DashboardLayout({
         };
 
         fetchProfile();
+
+        // Optional: Realtime Listener for Badges could go here
     }, []);
 
     const handleLogout = async () => {
@@ -248,17 +285,28 @@ export default function DashboardLayout({
                     <p className="text-xs font-bold text-zinc-500 px-2 mb-2 uppercase tracking-wider">Social</p>
                     {navItems.map((item) => {
                         const isActive = pathname === item.href;
+                        // 🔴 BADGE LOGIC
+                        let badgeCount = 0;
+                        if (item.href === "/dashboard/chats") {
+                            badgeCount = counts.unread + counts.requests;
+                        }
+
                         return (
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all relative ${isActive
                                     ? "bg-[#FF6B91]/10 text-[#FF6B91] font-medium"
                                     : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
                                     }`}
                             >
                                 <item.icon size={18} />
-                                {item.name}
+                                <span className="flex-1">{item.name}</span>
+                                {badgeCount > 0 && (
+                                    <span className="bg-[#FF6B91] text-black text-[10px] font-bold px-1.5 h-5 min-w-[20px] rounded-full flex items-center justify-center">
+                                        {badgeCount}
+                                    </span>
+                                )}
                             </Link>
                         );
                     })}

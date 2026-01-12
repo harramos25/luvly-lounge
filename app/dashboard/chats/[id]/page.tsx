@@ -54,7 +54,14 @@ export default function ChatRoom() {
                 }
             }
 
-            // 2. Load Messages
+            // 2. Load Messages & MARKET AS READ
+            // First, mark all incoming messages as read
+            await supabase
+                .from("direct_messages")
+                .update({ is_read: true })
+                .eq("conversation_id", id)
+                .neq("sender_id", user.id); // Only mark OTHER's messages
+
             const { data: msgs } = await supabase
                 .from("direct_messages")
                 .select("*")
