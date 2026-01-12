@@ -2,10 +2,8 @@ import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-01-27.acacia', // Use latest or your preferred version
-});
+// Initialize Stripe lazily or inside handler to avoid build-time errors
+// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, ...); 
 
 // PRICE IDS (REPLACE THESE WITH REAL STRIPE PRICE IDs FROM DASHBOARD)
 // You can also move these to environment variables
@@ -16,6 +14,15 @@ const PRICES = {
 
 export async function POST(req: Request) {
     try {
+        if (!process.env.STRIPE_SECRET_KEY) {
+            console.error("Stripe Secret Key missing");
+            return NextResponse.json({ error: "Server Configuration Error" }, { status: 500 });
+        }
+
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+            apiVersion: '2025-01-27.acacia',
+        });
+
         const { userId, plan } = await req.json();
         const priceId = PRICES[plan as keyof typeof PRICES];
 
