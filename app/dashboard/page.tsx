@@ -171,12 +171,7 @@ export default function MatchLobby() {
 
         await supabase.from("direct_messages").insert({
             conversation_id: newConv.id,
-            sender_id: userId, // System message technically from 'me' or we can make a fake system ID? 
-            // For now, 'me' sending the first text is fine, or we can add a 'is_system' flag later.
-            // User request: "The system... inserts the specific Welcome Message".
-            // I'll send it as me for now, but italicized via UI logic later? 
-            // Or better: Use a specific 'System' convention? 
-            // Let's just send it as text for simplicity.
+            sender_id: uid, // Use passed UID
             content: `[SYSTEM] ${greeting}`
         });
 
