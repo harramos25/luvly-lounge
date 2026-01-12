@@ -71,9 +71,9 @@ export default function VerifyPage() {
         if (dbError) {
             alert("Database error: " + dbError.message);
         } else {
-            alert("Verification sent! Please wait for Admin approval.");
-            // Ideally redirect to a "Waiting Room" page, but for now:
-            router.push("/dashboard");
+            alert("Verification sent! You can now proceed to setup your profile.");
+            // Redirect to Onboarding so they can fill profile BEFORE admin approves
+            router.push("/onboarding");
         }
         setUploading(false);
     };

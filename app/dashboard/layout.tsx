@@ -56,8 +56,9 @@ export default function DashboardLayout({
             if (data) {
                 // 🔒 CHECK 1: ARE THEY VERIFIED? (Allow 'verified' OR 'pending')
                 // If NULL (new user) or REJECTED -> Go to Verify
+                // WE ALLOW 'pending' users to enter, as per user request.
                 if (!data.verification_status || data.verification_status === 'rejected') {
-                    console.log("Gatekeeper: Not Verified -> Redirecting to /verify");
+                    console.log("Gatekeeper: Not Verified/Pending -> Redirecting to /verify");
                     router.push('/verify');
                     return; // Stop here, don't show dashboard
                 }
