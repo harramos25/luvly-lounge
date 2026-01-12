@@ -29,6 +29,7 @@ export default function DashboardLayout({
     });
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [showUpgrade, setShowUpgrade] = useState(false);
+    const [checking, setChecking] = useState(true); // 🔒 GATEKEEPER STATE
 
     // ... (existing hooks and useEffect) ...    
     const supabase = createClient();
@@ -41,7 +42,7 @@ export default function DashboardLayout({
             const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
-                router.push("/login"); // Client-side redirect if not auth
+                router.push("/login");
                 return;
             }
 
@@ -54,22 +55,22 @@ export default function DashboardLayout({
 
             if (data) {
                 // 🔒 CHECK 1: ARE THEY VERIFIED? (Allow 'verified' OR 'pending')
-                console.log("Gatekeeper Check:", data.verification_status);
-
-                // Only redirect if they haven't submitted (null) or were rejected
+                // If NULL (new user) or REJECTED -> Go to Verify
                 if (!data.verification_status || data.verification_status === 'rejected') {
-                    console.log("Redirecting to /verify...");
+                    console.log("Gatekeeper: Not Verified -> Redirecting to /verify");
                     router.push('/verify');
-                    return;
+                    return; // Stop here, don't show dashboard
                 }
 
                 // 🔒 CHECK 2: HAVE THEY DONE ONBOARDING?
                 // If they have no name, they skipped the wizard. Force them back.
                 if (!data.full_name) {
+                    console.log("Gatekeeper: No Name -> Redirecting to /onboarding");
                     router.push('/onboarding');
-                    return;
+                    return; // Stop here
                 }
 
+                // ✅ ALL CHECKS PASSED
                 setProfile({
                     full_name: data.full_name || user.email?.split('@')[0] || "User",
                     avatar_url: data.avatar_url,
@@ -77,6 +78,12 @@ export default function DashboardLayout({
                     // @ts-ignore
                     status: data.verification_status
                 });
+                setChecking(false); // Reveal Dashboard
+            } else {
+                // Profile doesn't exist yet? Likely a race condition or error.
+                // Force Verify layout to handle creation if needed or just wait.
+                // For now, assume if data missing, go to verify.
+                router.push('/verify');
             }
         };
 
@@ -97,6 +104,18 @@ export default function DashboardLayout({
         { name: "Profile", href: "/dashboard/profile", icon: User },
         { name: "Settings", href: "/dashboard/settings", icon: Settings },
     ];
+
+    // ⏳ LOADING STATE (Prevents Flash)
+    if (checking) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-black text-white">
+                <div className="animate-pulse flex flex-col items-center">
+                    <div className="w-12 h-12 border-4 border-[#FF6B91] border-t-transparent rounded-full animate-spin mb-4" />
+                    <p className="text-zinc-500 font-serif">Entering the Lounge...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-dvh md:h-screen flex-col md:flex-row bg-black text-white font-sans overflow-hidden">
