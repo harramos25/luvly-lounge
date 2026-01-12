@@ -178,9 +178,11 @@ export default function ChatRoom() {
             {/* HEADER */}
             <div className="h-16 border-b border-zinc-800 flex items-center justify-between px-4 bg-[#111]">
                 <div className="flex items-center gap-3">
-                    <button onClick={handleBack} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400">
-                        <ArrowLeft size={20} />
-                    </button>
+                    {friendStatus === 'accepted' && (
+                        <button onClick={() => router.push('/dashboard/chats')} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400">
+                            <ArrowLeft size={20} />
+                        </button>
+                    )}
 
                     <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
                         {partner?.avatar_url && <img src={partner.avatar_url} className="w-full h-full object-cover" />}
