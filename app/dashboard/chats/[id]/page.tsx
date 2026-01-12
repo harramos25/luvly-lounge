@@ -76,7 +76,22 @@ export default function ChatRoom() {
                 .on(
                     "postgres_changes",
                     { event: "INSERT", schema: "public", table: "direct_messages", filter: `conversation_id=eq.${id}` },
-                    (payload) => setMessages((prev) => [...prev, payload.new])
+                    async (payload) => {
+                        const newMsg = payload.new;
+                        setMessages((prev) => {
+                            // Prevent Duplicates
+                            if (prev.some(m => m.id === newMsg.id)) return prev;
+                            return [...prev, newMsg];
+                        });
+
+                        // If it's from the OTHER person, mark as read immediately
+                        if (newMsg.sender_id !== user.id) {
+                            await supabase
+                                .from("direct_messages")
+                                .update({ is_read: true })
+                                .eq("id", newMsg.id);
+                        }
+                    }
                 )
                 .subscribe();
 
@@ -104,6 +119,9 @@ export default function ChatRoom() {
         const text = newMessage;
         setNewMessage("");
 
+        // We rely on Realtime to show the message. 
+        // Failing that, the user might think it failed? 
+        // Let's rely on Realtime for now as it's cleaner than handling optimistic temp IDs.
         await supabase.from("direct_messages").insert({
             conversation_id: id,
             sender_id: userId,
