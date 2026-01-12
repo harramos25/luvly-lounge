@@ -71,9 +71,11 @@ export default function VerifyPage() {
         if (dbError) {
             alert("Database error: " + dbError.message);
         } else {
-            alert("Verification sent! You can now proceed to setup your profile.");
-            // Redirect to Onboarding so they can fill profile BEFORE admin approves
-            router.push("/onboarding");
+            // alert("Verification sent! You can now proceed to setup your profile.");
+            // Add a small delay to ensure DB updates propagate before we read them in /onboarding
+            setTimeout(() => {
+                router.push("/onboarding");
+            }, 1000);
         }
         setUploading(false);
     };
