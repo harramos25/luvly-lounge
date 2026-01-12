@@ -60,39 +60,39 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+        <div className="min-h-screen bg-yankees-blue flex items-center justify-center p-4">
             <motion.div
                 layout
-                className="w-full max-w-md bg-[#111] border border-zinc-800 p-8 rounded-2xl shadow-2xl"
+                className="w-full max-w-md bg-black/20 border border-white/10 p-8 rounded-2xl shadow-2xl backdrop-blur-sm"
             >
                 <div className="text-center mb-8">
-                    <h1 className="font-serif text-4xl text-transparent bg-clip-text bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] mb-2">
+                    <h1 className="font-serif text-4xl text-transparent bg-clip-text bg-gradient-to-r from-pictorial-carmine to-razzmatazz mb-2">
                         Luvly Lounge.
                     </h1>
-                    <p className="text-zinc-500 text-sm uppercase tracking-widest">
+                    <p className="text-queen-pink/60 text-sm uppercase tracking-widest">
                         {mode === 'login' ? 'Exclusive Access' : 'Apply for Membership'}
                     </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Email</label>
+                        <label className="block text-xs font-bold text-queen-pink/40 uppercase mb-1">Email</label>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-[#0a0a0a] border border-zinc-700 rounded-lg p-3 text-white focus:border-[#FF6B91] outline-none transition-colors"
+                            className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:border-razzmatazz outline-none transition-colors"
                             placeholder="you@example.com"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Password</label>
+                        <label className="block text-xs font-bold text-queen-pink/40 uppercase mb-1">Password</label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-[#0a0a0a] border border-zinc-700 rounded-lg p-3 text-white focus:border-[#FF6B91] outline-none transition-colors"
+                            className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:border-razzmatazz outline-none transition-colors"
                             placeholder="••••••••"
                         />
                     </div>
@@ -100,18 +100,18 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white font-bold py-3 rounded-lg hover:opacity-90 transition-opacity"
+                        className="w-full bg-gradient-to-r from-pictorial-carmine to-razzmatazz text-white font-bold py-3 rounded-lg hover:opacity-90 transition-opacity shadow-lg shadow-razzmatazz/20"
                     >
                         {loading ? "Processing..." : (mode === 'login' ? "Enter Lounge" : "Create Account")}
                     </button>
                 </form>
 
                 <div className="mt-6 text-center">
-                    <p className="text-zinc-500 text-sm">
+                    <p className="text-queen-pink/50 text-sm">
                         {mode === 'login' ? "New here? " : "Already have an account? "}
                         <button
                             onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                            className="text-[#FF6B91] font-bold hover:underline ml-1"
+                            className="text-white hover:text-razzmatazz font-bold hover:underline ml-1 transition-colors"
                         >
                             {mode === 'login' ? "Join the list" : "Log In"}
                         </button>

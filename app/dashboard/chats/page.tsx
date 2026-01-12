@@ -153,39 +153,39 @@ export default function ChatsPage() {
     };
 
     return (
-        <div className="h-full flex flex-col bg-black text-white p-6">
+        <div className="h-full flex flex-col bg-yankees-blue text-white p-6">
             <div className="flex items-center justify-between mb-8">
-                <h1 className="text-3xl font-serif text-[#FF6B91]">Messages</h1>
+                <h1 className="text-3xl font-serif text-queen-pink">Messages</h1>
             </div>
 
             {/* TABS */}
-            <div className="flex gap-4 mb-6 border-b border-zinc-800 pb-1">
+            <div className="flex gap-4 mb-6 border-b border-white/10 pb-1">
                 <button
                     onClick={() => setActiveTab("inbox")}
-                    className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === "inbox" ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+                    className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === "inbox" ? "text-white" : "text-queen-pink/50 hover:text-white"
                         }`}
                 >
                     Inbox
-                    {activeTab === "inbox" && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#FF6B91]" />}
+                    {activeTab === "inbox" && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-razzmatazz" />}
                 </button>
                 <button
                     onClick={() => setActiveTab("requests")}
-                    className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === "requests" ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+                    className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === "requests" ? "text-white" : "text-queen-pink/50 hover:text-white"
                         }`}
                 >
                     Requests
-                    {requests.length > 0 && <span className="ml-2 bg-[#FF6B91] text-black text-[10px] px-1.5 rounded-full">{requests.length}</span>}
-                    {activeTab === "requests" && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#FF6B91]" />}
+                    {requests.length > 0 && <span className="ml-2 bg-razzmatazz text-white text-[10px] px-1.5 rounded-full">{requests.length}</span>}
+                    {activeTab === "requests" && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-razzmatazz" />}
                 </button>
             </div>
 
             {/* SEARCH BAR (Only for Inbox) */}
             {activeTab === "inbox" && (
                 <div className="relative mb-6">
-                    <Search className="absolute left-4 top-3.5 text-zinc-500" size={18} />
+                    <Search className="absolute left-4 top-3.5 text-queen-pink/50" size={18} />
                     <input
                         placeholder="Search messages..."
-                        className="w-full bg-[#111] border border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-white focus:border-[#FF6B91] outline-none"
+                        className="w-full bg-black/20 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white focus:border-razzmatazz outline-none placeholder:text-queen-pink/30"
                     />
                 </div>
             )}
@@ -194,33 +194,33 @@ export default function ChatsPage() {
             <div className="flex-1 overflow-y-auto space-y-2">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-40">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FF6B91]"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-razzmatazz"></div>
                     </div>
                 ) : activeTab === "inbox" ? (
                     // --- INBOX VIEW ---
                     conversations.length === 0 ? (
                         <div className="text-center mt-20 opacity-50">
-                            <MessageCircle size={48} className="mx-auto mb-4 text-zinc-600" />
-                            <p className="text-zinc-400">No messages yet.</p>
+                            <MessageCircle size={48} className="mx-auto mb-4 text-queen-pink/30" />
+                            <p className="text-queen-pink/50">No messages yet.</p>
                         </div>
                     ) : (
                         conversations.map((chat) => {
                             const partner = chat.participants[0]?.profiles;
                             return (
                                 <Link key={chat.id} href={`/dashboard/chats/${chat.id}`}>
-                                    <div className="flex items-center gap-4 p-4 rounded-2xl hover:bg-[#111] transition-colors cursor-pointer group">
-                                        <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700 group-hover:border-zinc-500 transition-colors shrink-0">
+                                    <div className="flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors cursor-pointer group">
+                                        <div className="w-12 h-12 rounded-full bg-black/40 overflow-hidden border border-white/10 group-hover:border-queen-pink/30 transition-colors shrink-0">
                                             {partner?.avatar_url ? (
                                                 <img src={partner.avatar_url} className="w-full h-full object-cover" />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-zinc-600"><User size={20} /></div>
+                                                <div className="w-full h-full flex items-center justify-center text-queen-pink/30"><User size={20} /></div>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-bold text-white truncate">{partner?.full_name || "Unknown"}</h3>
-                                            <p className="text-xs text-zinc-500 truncate">Tap to chat</p>
+                                            <p className="text-xs text-queen-pink/50 truncate">Tap to chat</p>
                                         </div>
-                                        <div className="text-xs text-zinc-600">
+                                        <div className="text-xs text-queen-pink/40">
                                             {new Date(chat.updated_at).toLocaleDateString()}
                                         </div>
                                     </div>
@@ -232,30 +232,30 @@ export default function ChatsPage() {
                     // --- REQUESTS VIEW ---
                     requests.length === 0 ? (
                         <div className="text-center mt-20 opacity-50">
-                            <UserPlus size={48} className="mx-auto mb-4 text-zinc-600" />
-                            <p className="text-zinc-400">No pending requests.</p>
+                            <UserPlus size={48} className="mx-auto mb-4 text-queen-pink/30" />
+                            <p className="text-queen-pink/50">No pending requests.</p>
                         </div>
                     ) : (
                         requests.map((req: any) => (
-                            <div key={req.id} className="flex items-center justify-between p-4 bg-[#111] rounded-2xl border border-zinc-800">
+                            <div key={req.id} className="flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/10">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden shrink-0">
+                                    <div className="w-10 h-10 rounded-full bg-black/40 overflow-hidden shrink-0">
                                         {req.profiles?.avatar_url ? (
                                             <img src={req.profiles.avatar_url} className="w-full h-full object-cover" />
                                         ) : (
-                                            <User className="w-5 h-5 m-2.5 text-zinc-500" />
+                                            <User className="w-5 h-5 m-2.5 text-queen-pink/50" />
                                         )}
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-sm text-white">{req.profiles?.full_name}</h3>
-                                        <p className="text-[10px] text-zinc-500">Wants to connect</p>
+                                        <p className="text-[10px] text-queen-pink/50">Wants to connect</p>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={() => handleDecline(req.id)} className="p-2 bg-zinc-800 rounded-full hover:bg-red-900/50 text-zinc-400 hover:text-red-400 transition-colors">
+                                    <button onClick={() => handleDecline(req.id)} className="p-2 bg-white/5 rounded-full hover:bg-red-900/50 text-queen-pink/50 hover:text-red-400 transition-colors">
                                         <X size={18} />
                                     </button>
-                                    <button onClick={() => handleAccept(req.id, req.user_a)} className="p-2 bg-[#FF6B91] rounded-full hover:bg-[#ff5580] text-black transition-colors">
+                                    <button onClick={() => handleAccept(req.id, req.user_a)} className="p-2 bg-razzmatazz rounded-full hover:bg-razzmatazz/80 text-white transition-colors">
                                         <Check size={18} />
                                     </button>
                                 </div>

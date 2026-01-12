@@ -146,24 +146,24 @@ export default function DashboardLayout({
     // ⏳ LOADING STATE (Prevents Flash)
     if (checking) {
         return (
-            <div className="flex items-center justify-center h-screen bg-black text-white">
+            <div className="flex items-center justify-center h-screen bg-yankees-blue text-white">
                 <div className="animate-pulse flex flex-col items-center">
-                    <div className="w-12 h-12 border-4 border-[#FF6B91] border-t-transparent rounded-full animate-spin mb-4" />
-                    <p className="text-zinc-500 font-serif">Entering the Lounge...</p>
+                    <div className="w-12 h-12 border-4 border-razzmatazz border-t-transparent rounded-full animate-spin mb-4" />
+                    <p className="text-queen-pink/70 font-serif">Entering the Lounge...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex h-dvh md:h-screen flex-col md:flex-row bg-black text-white font-sans overflow-hidden">
+        <div className="flex h-dvh md:h-screen flex-col md:flex-row bg-yankees-blue text-white font-sans overflow-hidden">
 
             {/* --- MOBILE HEADER --- */}
-            <div className="md:hidden h-16 border-b border-zinc-800 bg-[#0a0a0a] flex items-center justify-between px-4 z-40 shrink-0">
-                <h1 className="font-serif text-xl bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] bg-clip-text text-transparent">
+            <div className="md:hidden h-16 border-b border-white/10 bg-yankees-blue flex items-center justify-between px-4 z-40 shrink-0">
+                <h1 className="font-serif text-xl bg-gradient-to-r from-pictorial-carmine to-razzmatazz bg-clip-text text-transparent">
                     Luvly Lounge.
                 </h1>
-                <button onClick={() => setMobileMenuOpen(true)} className="p-2 text-zinc-400 hover:text-white">
+                <button onClick={() => setMobileMenuOpen(true)} className="p-2 text-queen-pink/70 hover:text-white">
                     <Menu size={24} />
                 </button>
             </div>
@@ -178,23 +178,23 @@ export default function DashboardLayout({
                     />
 
                     {/* Sidebar Content */}
-                    <div className="absolute inset-y-0 left-0 w-64 bg-[#0a0a0a] border-r border-zinc-800 p-4 flex flex-col animate-in slide-in-from-left duration-200">
+                    <div className="absolute inset-y-0 left-0 w-64 bg-yankees-blue border-r border-white/10 p-4 flex flex-col animate-in slide-in-from-left duration-200">
                         <div className="flex justify-between items-center mb-8 px-2">
-                            <h1 className="font-serif text-2xl bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] bg-clip-text text-transparent">
+                            <h1 className="font-serif text-2xl bg-gradient-to-r from-pictorial-carmine to-razzmatazz bg-clip-text text-transparent">
                                 Luvly.
                             </h1>
-                            <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-zinc-500 hover:text-white">
+                            <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-queen-pink/60 hover:text-white">
                                 <X size={24} />
                             </button>
                         </div>
 
                         {/* User Card (Mobile) */}
-                        <div className="bg-[#111] rounded-2xl p-3 mb-6 flex items-center gap-3 border border-zinc-800">
-                            <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0">
+                        <div className="bg-black/20 rounded-2xl p-3 mb-6 flex items-center gap-3 border border-white/10">
+                            <div className="w-10 h-10 rounded-full bg-black/40 overflow-hidden flex-shrink-0">
                                 {profile.avatar_url ? (
                                     <img src={profile.avatar_url} className="w-full h-full object-cover" alt="User" />
                                 ) : (
-                                    <User className="w-6 h-6 m-2 text-zinc-500" />
+                                    <User className="w-6 h-6 m-2 text-queen-pink/50" />
                                 )}
                             </div>
                             <div className="overflow-hidden flex-1">
@@ -203,20 +203,20 @@ export default function DashboardLayout({
                                 {profile.status === 'pending' ? (
                                     <span className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono mt-0.5"><Clock size={10} /> Pending</span>
                                 ) : (
-                                    <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700 font-mono">{profile.tier}</span>
+                                    <span className="text-[10px] bg-white/5 text-queen-pink/60 px-1.5 py-0.5 rounded border border-white/10 font-mono">{profile.tier}</span>
                                 )}
                             </div>
                         </div>
 
                         {/* Mobile Nav Links */}
                         <div className="flex-1 space-y-1">
-                            <p className="text-xs font-bold text-zinc-500 px-2 mb-2 uppercase tracking-wider">Social</p>
+                            <p className="text-xs font-bold text-queen-pink/40 px-2 mb-2 uppercase tracking-wider">Social</p>
                             {navItems.map((item) => (
                                 <Link
                                     key={item.name}
                                     href={item.href}
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${pathname === item.href ? "bg-[#FF6B91]/10 text-[#FF6B91] font-medium" : "text-zinc-400 hover:bg-zinc-900 hover:text-white"}`}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${pathname === item.href ? "bg-razzmatazz/10 text-razzmatazz font-medium" : "text-queen-pink/60 hover:bg-white/5 hover:text-white"}`}
                                 >
                                     <item.icon size={18} /> {item.name}
                                 </Link>
@@ -224,19 +224,19 @@ export default function DashboardLayout({
                         </div>
 
                         {/* Mobile Bottom Links */}
-                        <div className="space-y-1 mt-6 border-t border-zinc-900 pt-6">
-                            <p className="text-xs font-bold text-zinc-500 px-2 mb-2 uppercase tracking-wider">You</p>
+                        <div className="space-y-1 mt-6 border-t border-white/10 pt-6">
+                            <p className="text-xs font-bold text-queen-pink/40 px-2 mb-2 uppercase tracking-wider">You</p>
                             {bottomItems.map((item) => (
                                 <Link
                                     key={item.name}
                                     href={item.href}
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${pathname === item.href ? "bg-white text-black font-bold" : "text-zinc-400 hover:bg-zinc-900 hover:text-white"}`}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${pathname === item.href ? "bg-white text-razzmatazz font-bold" : "text-queen-pink/60 hover:bg-white/5 hover:text-white"}`}
                                 >
                                     <item.icon size={18} /> {item.name}
                                 </Link>
                             ))}
-                            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-500 hover:bg-red-900/10 hover:text-red-400 transition-colors mt-2">
+                            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-queen-pink/60 hover:bg-red-900/10 hover:text-red-400 transition-colors mt-2">
                                 <LogOut size={18} /> Log Out
                             </button>
                         </div>
@@ -245,22 +245,22 @@ export default function DashboardLayout({
             )}
 
             {/* --- DESKTOP SIDEBAR (Existing) --- */}
-            <div className="hidden md:flex w-64 border-r border-zinc-800 flex-col p-4 bg-[#0a0a0a] shrink-0">
+            <div className="hidden md:flex w-64 border-r border-white/10 flex-col p-4 bg-yankees-blue shrink-0">
 
                 {/* Logo */}
                 <div className="mb-8 px-2">
-                    <h1 className="font-serif text-2xl bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] bg-clip-text text-transparent">
+                    <h1 className="font-serif text-2xl bg-gradient-to-r from-pictorial-carmine to-razzmatazz bg-clip-text text-transparent">
                         Luvly Lounge.
                     </h1>
                 </div>
 
                 {/* User Card */}
-                <div className="bg-[#111] rounded-2xl p-3 mb-6 flex items-center gap-3 border border-zinc-800">
-                    <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0">
+                <div className="bg-black/20 rounded-2xl p-3 mb-6 flex items-center gap-3 border border-white/10">
+                    <div className="w-10 h-10 rounded-full bg-black/40 overflow-hidden flex-shrink-0">
                         {profile.avatar_url ? (
                             <img src={profile.avatar_url} className="w-full h-full object-cover" alt="User" />
                         ) : (
-                            <User className="w-6 h-6 m-2 text-zinc-500" />
+                            <User className="w-6 h-6 m-2 text-queen-pink/50" />
                         )}
                     </div>
                     <div className="overflow-hidden flex-1">
@@ -273,7 +273,7 @@ export default function DashboardLayout({
                                 <Clock size={10} /> Pending
                             </span>
                         ) : (
-                            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700 font-mono">
+                            <span className="text-[10px] bg-white/5 text-queen-pink/60 px-1.5 py-0.5 rounded border border-white/10 font-mono">
                                 {profile.tier}
                             </span>
                         )}
@@ -282,7 +282,7 @@ export default function DashboardLayout({
 
                 {/* Navigation */}
                 <div className="flex-1 space-y-1">
-                    <p className="text-xs font-bold text-zinc-500 px-2 mb-2 uppercase tracking-wider">Social</p>
+                    <p className="text-xs font-bold text-queen-pink/40 px-2 mb-2 uppercase tracking-wider">Social</p>
                     {navItems.map((item) => {
                         const isActive = pathname === item.href;
                         // 🔴 BADGE LOGIC
@@ -296,14 +296,14 @@ export default function DashboardLayout({
                                 key={item.name}
                                 href={item.href}
                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all relative ${isActive
-                                    ? "bg-[#FF6B91]/10 text-[#FF6B91] font-medium"
-                                    : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                                    ? "bg-razzmatazz/10 text-razzmatazz font-medium"
+                                    : "text-queen-pink/60 hover:bg-white/5 hover:text-white"
                                     }`}
                             >
                                 <item.icon size={18} />
                                 <span className="flex-1">{item.name}</span>
                                 {badgeCount > 0 && (
-                                    <span className="bg-[#FF6B91] text-black text-[10px] font-bold px-1.5 h-5 min-w-[20px] rounded-full flex items-center justify-center">
+                                    <span className="bg-razzmatazz text-white text-[10px] font-bold px-1.5 h-5 min-w-[20px] rounded-full flex items-center justify-center shadow-lg shadow-razzmatazz/40">
                                         {badgeCount}
                                     </span>
                                 )}
@@ -313,8 +313,8 @@ export default function DashboardLayout({
                 </div>
 
                 {/* Bottom Menu */}
-                <div className="space-y-1 mt-6 border-t border-zinc-900 pt-6">
-                    <p className="text-xs font-bold text-zinc-500 px-2 mb-2 uppercase tracking-wider">You</p>
+                <div className="space-y-1 mt-6 border-t border-white/10 pt-6">
+                    <p className="text-xs font-bold text-queen-pink/40 px-2 mb-2 uppercase tracking-wider">You</p>
                     {bottomItems.map((item) => {
                         const isActive = pathname === item.href;
                         return (
@@ -322,8 +322,8 @@ export default function DashboardLayout({
                                 key={item.name}
                                 href={item.href}
                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive
-                                    ? "bg-white text-black font-bold"
-                                    : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                                    ? "bg-white text-razzmatazz font-bold"
+                                    : "text-queen-pink/60 hover:bg-white/5 hover:text-white"
                                     }`}
                             >
                                 <item.icon size={18} />
@@ -334,7 +334,7 @@ export default function DashboardLayout({
 
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-500 hover:bg-red-900/10 hover:text-red-400 transition-colors mt-2"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-queen-pink/60 hover:bg-red-900/10 hover:text-red-400 transition-colors mt-2"
                     >
                         <LogOut size={18} />
                         Log Out
@@ -344,7 +344,7 @@ export default function DashboardLayout({
                 {/* Upsell Banner (Desktop) */}
                 <div
                     onClick={() => setShowUpgrade(true)}
-                    className="mt-4 bg-gradient-to-br from-[#FF6B91] to-[#A67CFF] rounded-xl p-4 text-center cursor-pointer hover:scale-105 transition-transform"
+                    className="mt-4 bg-gradient-to-br from-pictorial-carmine to-razzmatazz rounded-xl p-4 text-center cursor-pointer hover:scale-105 transition-transform shadow-lg shadow-razzmatazz/20"
                 >
                     <Crown size={24} className="mx-auto text-white mb-2" />
                     <p className="text-[10px] text-white/80 font-medium leading-tight">
@@ -355,7 +355,7 @@ export default function DashboardLayout({
             </div>
 
             {/* --- MAIN CONTENT AREA --- */}
-            <main className="flex-1 overflow-y-auto relative bg-[#0a0a0a] w-full">
+            <main className="flex-1 overflow-y-auto relative bg-yankees-blue w-full">
                 {children}
             </main>
 
