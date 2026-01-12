@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Luvly Lounge",
-  description: "Connect instantly with strangers worldwide.",
+  description: "Anonymous Chat & Matchmaking",
   icons: {
-    icon: "/LOGO.png",
+    icon: "/LOGO.ico", // Attempt to use the ICO if served from public
   },
 };
 
