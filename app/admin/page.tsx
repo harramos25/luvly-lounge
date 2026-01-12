@@ -57,31 +57,61 @@ export default function AdminPage() {
     };
 
     const handleApprove = async (userId: string) => {
-        // 1. Delete Image from Storage to save space/privacy
-        const user = users.find(u => u.id === userId);
-        if (user?.verification_image_path) {
-            await supabase.storage.from("verifications").remove([user.verification_image_path]);
+        try {
+            // 1. Delete Image from Storage
+            const user = users.find(u => u.id === userId);
+            console.log("Approving user:", userId);
+
+            if (user?.verification_image_path) {
+                const { error: storageError } = await supabase.storage.from("verifications").remove([user.verification_image_path]);
+                if (storageError) console.error("Storage Delete Error:", storageError);
+            }
+
+            // 2. Update DB
+            const { error: dbError } = await supabase
+                .from("profiles")
+                .update({ verification_status: "verified" })
+                .eq("id", userId);
+
+            if (dbError) {
+                alert("Failed to update profile: " + dbError.message);
+                return;
+            }
+
+            // 3. Re-fetch to confirm
+            await fetchPendingUsers();
+        } catch (err) {
+            console.error("Unexpected error:", err);
+            alert("Something went wrong. Check console.");
         }
-
-        // 2. Update DB
-        await supabase.from("profiles").update({ verification_status: "verified" }).eq("id", userId);
-
-        // 3. Update UI
-        setUsers(users.filter(u => u.id !== userId));
     };
 
     const handleReject = async (userId: string) => {
-        // 1. Delete Image from Storage
-        const user = users.find(u => u.id === userId);
-        if (user?.verification_image_path) {
-            await supabase.storage.from("verifications").remove([user.verification_image_path]);
+        try {
+            // 1. Delete Image from Storage
+            const user = users.find(u => u.id === userId);
+            if (user?.verification_image_path) {
+                const { error: storageError } = await supabase.storage.from("verifications").remove([user.verification_image_path]);
+                if (storageError) console.error("Storage Delete Error:", storageError);
+            }
+
+            // 2. Update DB
+            const { error: dbError } = await supabase
+                .from("profiles")
+                .update({ verification_status: "rejected" })
+                .eq("id", userId);
+
+            if (dbError) {
+                alert("Failed to update profile: " + dbError.message);
+                return;
+            }
+
+            // 3. Re-fetch
+            await fetchPendingUsers();
+        } catch (err) {
+            console.error("Unexpected error:", err);
+            alert("Something went wrong. Check console.");
         }
-
-        // 2. Update DB
-        await supabase.from("profiles").update({ verification_status: "rejected" }).eq("id", userId);
-
-        // 3. Update UI
-        setUsers(users.filter(u => u.id !== userId));
     };
 
     if (loading) return <div className="p-10 text-white">Loading...</div>;
