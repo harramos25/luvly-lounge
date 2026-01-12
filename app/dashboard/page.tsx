@@ -82,11 +82,27 @@ export default function MatchLobby() {
     };
 
     const startSearch = async () => {
-        if (!userId) {
-            alert("⚠️ SYSTEM ERROR: User ID is missing. Please refresh the page or re-login.");
-            console.error("User ID missing, cannot start search.");
+        let currentUserId = userId;
+
+        // 🛡️ SELF-HEALING: If state is missing, fetch fresh from Supabase
+        if (!currentUserId) {
+            console.warn("State userId missing. Fetching fresh...");
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                currentUserId = user.id;
+                setUserId(user.id); // Update state for next time
+            } else {
+                alert("⚠️ Session expired. Please login again.");
+                router.push('/login');
+                return;
+            }
+        }
+
+        if (!currentUserId) {
+            alert("⚠️ SYSTEM ERROR: User ID is truly missing.");
             return;
         }
+
         setStatus('searching');
         hasRedirected.current = false;
 
@@ -94,18 +110,17 @@ export default function MatchLobby() {
         await supabase.from("profiles").update({
             interests: myInterests,
             match_status: 'searching'
-        }).eq("id", userId);
+        }).eq("id", currentUserId);
 
         // 2. Start Polling Loop (Active Search)
-        // We try to match every 3 seconds
         const interval = setInterval(async () => {
-            await performMatchAttempt();
+            await performMatchAttempt(currentUserId);
         }, 3000);
         setSearchInterval(interval);
-        intervalRef.current = interval; // Update the ref
+        intervalRef.current = interval;
 
         // Try immediately once
-        await performMatchAttempt();
+        await performMatchAttempt(currentUserId);
     };
 
     const performMatchAttempt = async () => {
@@ -137,14 +152,14 @@ export default function MatchLobby() {
         }
     };
 
-    const createMatchConversation = async (partnerId: string, commonInterest: string | null) => {
+    const createMatchConversation = async (partnerId: string, commonInterest: string | null, uid: string) => {
         // 1. Create Conversation
         const { data: newConv } = await supabase.from("conversations").insert({}).select().single();
         if (!newConv) return;
 
         // 2. Add Participants
         await supabase.from("conversation_participants").insert([
-            { conversation_id: newConv.id, user_id: userId },
+            { conversation_id: newConv.id, user_id: uid },
             { conversation_id: newConv.id, user_id: partnerId }
         ]);
 
