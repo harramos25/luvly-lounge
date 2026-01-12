@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { MapPin, Calendar, Heart, Share2, Edit3, ShieldCheck } from "lucide-react";
+import { MapPin, Calendar, Heart, Share2, Edit3, ShieldCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
+    const router = useRouter();
 
     useEffect(() => {
         const getProfile = async () => {
@@ -25,6 +27,22 @@ export default function ProfilePage() {
         };
         getProfile();
     }, []);
+
+    const handleDeleteAccount = async () => {
+        const confirmDelete = window.confirm("Are you ABSOLUTELY sure? This will permanently delete your account and all data.");
+        if (!confirmDelete) return;
+
+        const { error } = await supabase.rpc('delete_user_account');
+
+        if (error) {
+            console.error(error);
+            alert("Failed to delete account. Make sure you installed the SQL function! " + error.message);
+        } else {
+            await supabase.auth.signOut();
+            alert("Account deleted. Goodbye! 💔");
+            router.push("/login");
+        }
+    };
 
     if (loading) return <div className="p-10 text-white">Loading Profile...</div>;
     if (!profile) return null;
@@ -121,6 +139,22 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
+            </div>
+
+            {/* DANGER ZONE */}
+            <div className="mt-16 max-w-5xl border-t border-zinc-900 pt-8 pb-20">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <h3 className="text-red-500 font-bold mb-1">Danger Zone</h3>
+                        <p className="text-zinc-500 text-sm">Once you delete your account, there is no going back. Please be certain.</p>
+                    </div>
+                    <button
+                        onClick={handleDeleteAccount}
+                        className="bg-red-500/10 text-red-500 border border-red-500/50 hover:bg-red-500 hover:text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
+                    >
+                        <Trash2 size={18} /> Delete Account
+                    </button>
+                </div>
             </div>
         </div>
     );
