@@ -25,6 +25,7 @@ export default function Onboarding() {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [userId, setUserId] = useState("");
+    const [checking, setChecking] = useState(true); // 🔒 GATEKEEPER STATE
 
     // FORM STATE
     const [gender, setGender] = useState("");
@@ -45,18 +46,66 @@ export default function Onboarding() {
 
                 // 🔒 EXTRA SECURITY: If they somehow got here without verifying, KICK THEM OUT.
                 if (!data?.verification_status || data.verification_status === 'rejected') {
+                    // console.log("Onboarding Gatekeeper: Redirecting to /verify");
                     router.push('/verify');
                     return;
                 }
 
                 if (data?.full_name) setFullName(data.full_name);
                 if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+                setChecking(false); // ✅ Safe to show UI
+            } else {
+                router.push("/login");
             }
         };
         getUser();
     }, []);
 
-    // ... (rest of handlers)
+    // --- HANDLERS ---
+
+    const toggleInterest = (tag: string) => {
+        if (selectedInterests.includes(tag)) {
+            setSelectedInterests(prev => prev.filter(t => t !== tag));
+        } else {
+            if (selectedInterests.length >= 3) return; // Limit to 3 for Free tier
+            setSelectedInterests(prev => [...prev, tag]);
+        }
+    };
+
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+
+        // 1. CHECK FILE SIZE (Limit to 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            alert("Image too big! Max 2MB.");
+            return;
+        }
+
+        setLoading(true);
+        const fileExt = file.name.split('.').pop();
+        const newFilePath = `${userId}/avatar.${fileExt}`;
+
+        // 2. CLEANUP: Find and Delete OLD files first
+        const { data: oldFiles } = await supabase.storage
+            .from('avatars')
+            .list(userId);
+
+        if (oldFiles && oldFiles.length > 0) {
+            const filesToRemove = oldFiles.map((x) => `${userId}/${x.name}`);
+            await supabase.storage.from('avatars').remove(filesToRemove);
+        }
+
+        // 3. UPLOAD
+        const { error } = await supabase.storage.from('avatars').upload(newFilePath, file, { upsert: true });
+
+        if (!error) {
+            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(newFilePath);
+            const urlWithTime = `${publicUrl}?t=${Date.now()}`;
+            setAvatarUrl(urlWithTime);
+        }
+        setLoading(false);
+    };
 
     const finishOnboarding = async () => {
         if (!fullName.trim()) return alert("Please enter your name!");
@@ -77,6 +126,18 @@ export default function Onboarding() {
         }
         setLoading(false);
     };
+
+    // ⏳ LOADING STATE (Prevents Flash)
+    if (checking) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-black text-white">
+                <div className="animate-pulse flex flex-col items-center">
+                    <div className="w-12 h-12 border-4 border-[#FF6B91] border-t-transparent rounded-full animate-spin mb-4" />
+                    <p className="text-zinc-500 font-serif">Checking verification...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
