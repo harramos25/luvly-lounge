@@ -23,13 +23,24 @@ export default function MatchLobby() {
     const [searchInterval, setSearchInterval] = useState<NodeJS.Timeout | null>(null);
     const hasRedirected = useRef(false);
 
-    // 🛑 CLEANUP: If user leaves, stop searching
+    // Refs for Cleanup (to avoid dependency cycle causing premature 'offline' status)
+    const userIdRef = useRef(userId);
+    const intervalRef = useRef(searchInterval);
+
+    useEffect(() => { userIdRef.current = userId; }, [userId]);
+    useEffect(() => { intervalRef.current = searchInterval; }, [searchInterval]);
+
+    // 🛑 CLEANUP: Only on UNMOUNT
     useEffect(() => {
         return () => {
-            if (searchInterval) clearInterval(searchInterval);
-            if (userId) supabase.from("profiles").update({ match_status: 'offline' }).eq("id", userId);
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            // We need to construct a new client or use the existing one? Existing is fine in closure?
+            // Actually 'supabase' const is stable? Yes.
+            if (userIdRef.current) {
+                supabase.from("profiles").update({ match_status: 'offline' }).eq("id", userIdRef.current).then(() => { });
+            }
         };
-    }, [searchInterval, userId]);
+    }, []);
 
     // 👂 PASSIVE LISTENER: Did someone pick ME?
     useEffect(() => {
@@ -62,6 +73,7 @@ export default function MatchLobby() {
     }, [userId, status, searchInterval]);
 
     const toggleInterest = (tag: string) => {
+        console.log("Toggling interest:", tag);
         if (myInterests.includes(tag)) {
             setMyInterests(prev => prev.filter(t => t !== tag));
         } else {
@@ -70,7 +82,10 @@ export default function MatchLobby() {
     };
 
     const startSearch = async () => {
-        if (!userId) return;
+        if (!userId) {
+            console.error("User ID missing, cannot start search.");
+            return;
+        }
         setStatus('searching');
         hasRedirected.current = false;
 
@@ -86,6 +101,7 @@ export default function MatchLobby() {
             await performMatchAttempt();
         }, 3000);
         setSearchInterval(interval);
+        intervalRef.current = interval; // Update the ref
 
         // Try immediately once
         await performMatchAttempt();
@@ -216,7 +232,7 @@ export default function MatchLobby() {
                         <span className="flex items-center gap-2">
                             <Search size={20} /> Start New Chat
                         </span>
-                        <div className="absolute -inset-3 rounded-full bg-white/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute -inset-3 rounded-full bg-white/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                     </button>
                 )}
 
