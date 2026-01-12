@@ -83,6 +83,7 @@ export default function MatchLobby() {
 
     const startSearch = async () => {
         if (!userId) {
+            alert("⚠️ SYSTEM ERROR: User ID is missing. Please refresh the page or re-login.");
             console.error("User ID missing, cannot start search.");
             return;
         }
@@ -233,6 +234,15 @@ export default function MatchLobby() {
                         </span>
                     </button>
                 )}
+
+                {/* DEBUG PANEL (Temporary) */}
+                <div className="mt-12 p-4 bg-zinc-900/50 rounded-xl text-xs font-mono text-left text-zinc-500 overflow-hidden">
+                    <p className="font-bold text-zinc-300 mb-2">🚧 DEBUG PANEL</p>
+                    <p>User ID: {userId || "MISSING"}</p>
+                    <p>Status: {status}</p>
+                    <p>Interests: {myInterests.join(", ") || "None"}</p>
+                    <p>Has Redirected: {hasRedirected.current ? "YES" : "NO"}</p>
+                </div>
 
             </div>
         </div>
