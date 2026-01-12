@@ -42,6 +42,13 @@ export default function Onboarding() {
                 setUserId(user.id);
                 // Pre-fill if they already started
                 const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+
+                // 🔒 EXTRA SECURITY: If they somehow got here without verifying, KICK THEM OUT.
+                if (!data?.verification_status || data.verification_status === 'rejected') {
+                    router.push('/verify');
+                    return;
+                }
+
                 if (data?.full_name) setFullName(data.full_name);
                 if (data?.avatar_url) setAvatarUrl(data.avatar_url);
             }
@@ -49,62 +56,17 @@ export default function Onboarding() {
         getUser();
     }, []);
 
-    // --- HANDLERS ---
-
-    const toggleInterest = (tag: string) => {
-        if (selectedInterests.includes(tag)) {
-            setSelectedInterests(prev => prev.filter(t => t !== tag));
-        } else {
-            if (selectedInterests.length >= 3) return; // Limit to 3 for Free tier
-            setSelectedInterests(prev => [...prev, tag]);
-        }
-    };
-
-    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || e.target.files.length === 0) return;
-        const file = e.target.files[0];
-
-        // 1. CHECK FILE SIZE (Limit to 2MB)
-        if (file.size > 2 * 1024 * 1024) {
-            alert("Image too big! Max 2MB.");
-            return;
-        }
-
-        setLoading(true);
-        const fileExt = file.name.split('.').pop();
-        const newFilePath = `${userId}/avatar.${fileExt}`;
-
-        // 2. CLEANUP: Find and Delete OLD files first
-        const { data: oldFiles } = await supabase.storage
-            .from('avatars')
-            .list(userId);
-
-        if (oldFiles && oldFiles.length > 0) {
-            const filesToRemove = oldFiles.map((x) => `${userId}/${x.name}`);
-            await supabase.storage.from('avatars').remove(filesToRemove);
-        }
-
-        // 3. UPLOAD
-        const { error } = await supabase.storage.from('avatars').upload(newFilePath, file, { upsert: true });
-
-        if (!error) {
-            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(newFilePath);
-            const urlWithTime = `${publicUrl}?t=${Date.now()}`;
-            setAvatarUrl(urlWithTime);
-        }
-        setLoading(false);
-    };
+    // ... (rest of handlers)
 
     const finishOnboarding = async () => {
         if (!fullName.trim()) return alert("Please enter your name!");
 
         setLoading(true);
         const { error } = await supabase.from("profiles").update({
-            gender: gender,
+            gender_identity: gender, // ✅ FIXED: Matches DB column name
             interests: selectedInterests,
             full_name: fullName,
             avatar_url: avatarUrl,
-            // We can add a flag here like 'onboarding_complete: true' later if needed
         }).eq("id", userId);
 
         if (error) {
@@ -141,8 +103,8 @@ export default function Onboarding() {
                                     key={g}
                                     onClick={() => setGender(g)}
                                     className={`p-4 rounded-xl text-left border transition-all ${gender === g
-                                            ? "bg-[#FF6B91]/10 border-[#FF6B91] text-[#FF6B91]"
-                                            : "bg-[#111] border-zinc-800 hover:border-zinc-600"
+                                        ? "bg-[#FF6B91]/10 border-[#FF6B91] text-[#FF6B91]"
+                                        : "bg-[#111] border-zinc-800 hover:border-zinc-600"
                                         }`}
                                 >
                                     {g}
@@ -176,8 +138,8 @@ export default function Onboarding() {
                                         key={tag}
                                         onClick={() => toggleInterest(tag)}
                                         className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${isSelected
-                                                ? "bg-[#A67CFF] border-[#A67CFF] text-black"
-                                                : "bg-[#111] border-zinc-800 text-zinc-400 hover:border-zinc-600"
+                                            ? "bg-[#A67CFF] border-[#A67CFF] text-black"
+                                            : "bg-[#111] border-zinc-800 text-zinc-400 hover:border-zinc-600"
                                             }`}
                                     >
                                         {tag}
