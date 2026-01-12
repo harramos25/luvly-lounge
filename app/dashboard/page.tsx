@@ -192,14 +192,14 @@ export default function MatchLobby() {
                 </div>
 
                 {/* Interest Selector */}
-                <div className="bg-[#111] border border-zinc-800 rounded-3xl p-8">
+                <div className="bg-[#111] border border-zinc-800 rounded-3xl p-8 relative z-40">
                     <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Current Interests</h3>
                     <div className="flex flex-wrap justify-center gap-3">
                         {INTEREST_TAGS.map((tag) => (
                             <button
                                 key={tag}
                                 onClick={() => toggleInterest(tag)}
-                                className={`px-6 py-3 rounded-full text-sm font-medium transition-all ${myInterests.includes(tag)
+                                className={`px-6 py-3 rounded-full text-sm font-medium transition-all relative z-50 cursor-pointer active:scale-95 ${myInterests.includes(tag)
                                     ? "bg-[#FF6B91] text-black shadow-lg shadow-[#FF6B91]/20 scale-105"
                                     : "bg-[#1A1A1A] text-zinc-400 border border-zinc-800 hover:border-zinc-600"
                                     }`}
@@ -214,7 +214,7 @@ export default function MatchLobby() {
                 {status === 'searching' ? (
                     <button
                         onClick={cancelSearch}
-                        className="group relative inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-white transition-all duration-200 bg-red-500/20 border border-red-500 rounded-full hover:bg-red-500 hover:text-white w-full md:w-auto min-w-[300px]"
+                        className="group relative z-50 inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-white transition-all duration-200 bg-red-500/20 border border-red-500 rounded-full hover:bg-red-500 hover:text-white w-full md:w-auto min-w-[300px]"
                     >
                         <span className="flex items-center gap-2">
                             <XCircle size={20} /> Cancel Search
@@ -226,13 +226,11 @@ export default function MatchLobby() {
                 ) : (
                     <button
                         onClick={startSearch}
-                        disabled={loading}
-                        className="group relative inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-black transition-all duration-200 bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white hover:bg-zinc-200 disabled:opacity-70 disabled:cursor-not-allowed w-full md:w-auto min-w-[300px]"
+                        className="group relative z-50 inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-black transition-all duration-200 bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.3)] w-full md:w-auto min-w-[300px] active:scale-95"
                     >
                         <span className="flex items-center gap-2">
                             <Search size={20} /> Start New Chat
                         </span>
-                        <div className="absolute -inset-3 rounded-full bg-white/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                     </button>
                 )}
 
