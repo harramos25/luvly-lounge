@@ -3,18 +3,9 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
-import {
-    MessageCircle,
-    Clock,
-    Settings,
-    User,
-    LogOut,
-    Crown,
-    Zap as ZapIcon,
-    Menu,
-    X
-} from "lucide-react";
+import UpgradeModal from "@/components/UpgradeModal";
+
+// ... (existing imports)
 
 export default function DashboardLayout({
     children,
@@ -26,12 +17,16 @@ export default function DashboardLayout({
         avatar_url: null as string | null,
         tier: "Free"
     });
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [showUpgrade, setShowUpgrade] = useState(false);
 
+    // ... (existing hooks and useEffect) ...    
     const supabase = createClient();
     const router = useRouter();
     const pathname = usePathname();
 
     useEffect(() => {
+        // ... (Keep existing useEffect exactly as is) ...
         const fetchProfile = async () => {
             const { data: { user } } = await supabase.auth.getUser();
 
@@ -92,8 +87,6 @@ export default function DashboardLayout({
         { name: "Profile", href: "/dashboard/profile", icon: User },
         { name: "Settings", href: "/dashboard/settings", icon: Settings },
     ];
-
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     return (
         <div className="flex h-dvh md:h-screen flex-col md:flex-row bg-black text-white font-sans overflow-hidden">
@@ -270,8 +263,11 @@ export default function DashboardLayout({
                     </button>
                 </div>
 
-                {/* Upsell Banner */}
-                <div className="mt-4 bg-gradient-to-br from-[#FF6B91] to-[#A67CFF] rounded-xl p-4 text-center">
+                {/* Upsell Banner (Desktop) */}
+                <div
+                    onClick={() => setShowUpgrade(true)}
+                    className="mt-4 bg-gradient-to-br from-[#FF6B91] to-[#A67CFF] rounded-xl p-4 text-center cursor-pointer hover:scale-105 transition-transform"
+                >
                     <Crown size={24} className="mx-auto text-white mb-2" />
                     <p className="text-[10px] text-white/80 font-medium leading-tight">
                         Unlock unlimited chats & gold badge.
@@ -284,6 +280,9 @@ export default function DashboardLayout({
             <main className="flex-1 overflow-y-auto relative bg-[#0a0a0a] w-full">
                 {children}
             </main>
+
+            {/* MODALS */}
+            <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
 
         </div>
     );
