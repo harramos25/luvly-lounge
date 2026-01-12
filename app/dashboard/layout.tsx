@@ -3,9 +3,19 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import {
+    MessageCircle,
+    Clock,
+    Settings,
+    User,
+    LogOut,
+    Crown,
+    Zap as ZapIcon,
+    Menu,
+    X
+} from "lucide-react";
 import UpgradeModal from "@/components/UpgradeModal";
-
-// ... (existing imports)
 
 export default function DashboardLayout({
     children,
