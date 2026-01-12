@@ -60,13 +60,16 @@ export default function VerifyPage() {
         // Update Profile Status
         // Note: We don't set it to 'verified' yet. We keep it 'pending' for Admin review.
         // But we update the image path so Admin can see it.
+        // Update Profile Status (or Create if missing - fix for "Zombie" users)
+        // We use UPSERT now so if you deleted your 'profile' row, this restores it.
         const { error: dbError } = await supabase
             .from('profiles')
-            .update({
+            .upsert({
+                id: user.id, // Required for upsert
                 verification_image_path: fileName,
-                verification_status: 'pending' // Still pending until YOU approve
-            })
-            .eq('id', user.id);
+                verification_status: 'pending'
+            });
+        // .eq('id', user.id); // No longer needed with upsert containing ID
 
         if (dbError) {
             alert("Database error: " + dbError.message);
