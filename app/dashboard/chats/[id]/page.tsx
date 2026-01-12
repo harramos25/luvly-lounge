@@ -202,13 +202,15 @@ export default function ChatRoom() {
                         <ShieldAlert size={18} />
                     </button>
 
-                    {/* SKIP (Start New Chat) */}
-                    <button
-                        onClick={handleSkip}
-                        className="px-4 py-1.5 bg-zinc-800 text-xs font-bold rounded-lg hover:bg-zinc-700 ml-2 transition-colors flex items-center gap-2"
-                    >
-                        <XCircle size={14} /> Skip
-                    </button>
+                    {/* SKIP (Only show for non-friends / strangers) */}
+                    {friendStatus !== 'accepted' && (
+                        <button
+                            onClick={handleSkip}
+                            className="px-4 py-1.5 bg-zinc-800 text-xs font-bold rounded-lg hover:bg-zinc-700 ml-2 transition-colors flex items-center gap-2"
+                        >
+                            <XCircle size={14} /> Skip
+                        </button>
+                    )}
                 </div>
             </div>
 
