@@ -61,6 +61,14 @@ export default function MatchLobby() {
         return () => { supabase.removeChannel(channel); };
     }, [userId, status, searchInterval]);
 
+    const toggleInterest = (tag: string) => {
+        if (myInterests.includes(tag)) {
+            setMyInterests(prev => prev.filter(t => t !== tag));
+        } else {
+            setMyInterests(prev => [...prev, tag]);
+        }
+    };
+
     const startSearch = async () => {
         if (!userId) return;
         setStatus('searching');
