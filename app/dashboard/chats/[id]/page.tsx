@@ -161,13 +161,24 @@ export default function ChatRoom() {
         }
     };
 
+    const handleBack = () => {
+        // Smart Redirect:
+        // Friends -> Go back to Inbox
+        // Strangers -> Go back to Lounge (Dashboard)
+        if (friendStatus === 'accepted') {
+            router.push('/dashboard/chats');
+        } else {
+            router.push('/dashboard');
+        }
+    };
+
     return (
         <div className="flex flex-col h-screen bg-black text-white">
 
             {/* HEADER */}
             <div className="h-16 border-b border-zinc-800 flex items-center justify-between px-4 bg-[#111]">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.push('/dashboard')} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400">
+                    <button onClick={handleBack} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400">
                         <ArrowLeft size={20} />
                     </button>
 
