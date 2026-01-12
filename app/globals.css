@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #191B37; /* Yankees Blue Default */
+  --foreground: #F966AB; /* Hot Pink Text? Or maybe Queen Pink? Let's go with Queen Pink for readability */
+  --foreground: #E9CFE8; 
+  
+  /* Palette */
+  --yankees-blue: #191B37;
+  --pictorial-carmine: #AE0849;
+  --razzmatazz: #E21C70;
+  --hot-pink: #F966AB;
+  --queen-pink: #E9CFE8;
 }
 
 @theme inline {
@@ -10,12 +18,19 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* App Palette */
+  --color-yankees-blue: var(--yankees-blue);
+  --color-pictorial-carmine: var(--pictorial-carmine);
+  --color-razzmatazz: var(--razzmatazz);
+  --color-hot-pink: var(--hot-pink);
+  --color-queen-pink: var(--queen-pink);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #191B37;
+    --foreground: #E9CFE8;
   }
 }
 

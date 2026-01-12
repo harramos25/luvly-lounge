@@ -186,33 +186,33 @@ export default function MatchLobby() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white p-6 md:p-12">
+        <div className="min-h-screen bg-yankees-blue text-white p-6 md:p-12">
             <div className="max-w-4xl mx-auto text-center space-y-12">
 
                 {/* Header */}
                 <div>
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-[#FF6B91] to-[#A67CFF] mb-6 shadow-[0_0_30px_rgba(255,107,145,0.4)]">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-pictorial-carmine to-razzmatazz mb-6 shadow-lg shadow-razzmatazz/40">
                         <ZapIcon size={32} className="text-white" />
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-serif font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500">
+                    <h1 className="text-4xl md:text-5xl font-serif font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-queen-pink">
                         Chat with Strangers
                     </h1>
-                    <p className="text-zinc-400 mt-4 text-lg">
+                    <p className="text-queen-pink/70 mt-4 text-lg">
                         Select your interests and connect instantly with a random stranger.
                     </p>
                 </div>
 
                 {/* Interest Selector */}
-                <div className="bg-[#111] border border-zinc-800 rounded-3xl p-8 relative z-40">
-                    <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Current Interests</h3>
+                <div className="bg-black/20 border border-white/10 rounded-3xl p-8 relative z-40">
+                    <h3 className="text-sm font-bold text-queen-pink/50 uppercase tracking-widest mb-6">Current Interests</h3>
                     <div className="flex flex-wrap justify-center gap-3">
                         {INTEREST_TAGS.map((tag) => (
                             <button
                                 key={tag}
                                 onClick={() => toggleInterest(tag)}
                                 className={`px-6 py-3 rounded-full text-sm font-medium transition-all relative z-50 cursor-pointer active:scale-95 ${myInterests.includes(tag)
-                                    ? "bg-[#FF6B91] text-black shadow-lg shadow-[#FF6B91]/20 scale-105"
-                                    : "bg-[#1A1A1A] text-zinc-400 border border-zinc-800 hover:border-zinc-600"
+                                    ? "bg-razzmatazz text-white shadow-lg shadow-razzmatazz/20 scale-105"
+                                    : "bg-white/5 text-queen-pink/60 border border-white/5 hover:border-queen-pink/30 hover:bg-white/10"
                                     }`}
                             >
                                 {tag}
@@ -225,19 +225,19 @@ export default function MatchLobby() {
                 {status === 'searching' ? (
                     <button
                         onClick={cancelSearch}
-                        className="group relative z-50 inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-white transition-all duration-200 bg-red-500/20 border border-red-500 rounded-full hover:bg-red-500 hover:text-white w-full md:w-auto min-w-[300px]"
+                        className="group relative z-50 inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-white transition-all duration-200 bg-pictorial-carmine/20 border border-pictorial-carmine rounded-full hover:bg-pictorial-carmine hover:text-white w-full md:w-auto min-w-[300px]"
                     >
                         <span className="flex items-center gap-2">
                             <XCircle size={20} /> Cancel Search
                         </span>
-                        <span className="absolute -bottom-8 text-xs text-zinc-500 animate-pulse">
+                        <span className="absolute -bottom-8 text-xs text-queen-pink/50 animate-pulse">
                             Searching for a match...
                         </span>
                     </button>
                 ) : (
                     <button
                         onClick={startSearch}
-                        className="group relative z-50 inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-black transition-all duration-200 bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.3)] w-full md:w-auto min-w-[300px] active:scale-95"
+                        className="group relative z-50 inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-yankees-blue transition-all duration-200 bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white hover:bg-queen-pink shadow-[0_0_20px_rgba(255,255,255,0.3)] w-full md:w-auto min-w-[300px] active:scale-95"
                     >
                         <span className="flex items-center gap-2">
                             <Search size={20} /> Start New Chat
