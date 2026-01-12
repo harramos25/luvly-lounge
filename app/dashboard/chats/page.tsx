@@ -184,7 +184,7 @@ export default function ChatsPage() {
                 <div className="relative mb-6">
                     <Search className="absolute left-4 top-3.5 text-zinc-500" size={18} />
                     <input
-                        placeholder="Search chats..."
+                        placeholder="Search messages..."
                         className="w-full bg-[#111] border border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-white focus:border-[#FF6B91] outline-none"
                     />
                 </div>
@@ -201,7 +201,7 @@ export default function ChatsPage() {
                     conversations.length === 0 ? (
                         <div className="text-center mt-20 opacity-50">
                             <MessageCircle size={48} className="mx-auto mb-4 text-zinc-600" />
-                            <p className="text-zinc-400">No chats yet.</p>
+                            <p className="text-zinc-400">No messages yet.</p>
                         </div>
                     ) : (
                         conversations.map((chat) => {
