@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { Zap as ZapIcon, Search, Loader2 } from "lucide-react";
+import { Zap as ZapIcon, Search, Loader2, XCircle } from "lucide-react";
 
 const INTEREST_TAGS = [
     "Tech", "Art", "Gaming", "Fashion", "Beauty", "Books",
@@ -13,91 +13,141 @@ const INTEREST_TAGS = [
 
 export default function MatchLobby() {
     const [loading, setLoading] = useState(false);
-    const [finding, setFinding] = useState(false);
     const [myInterests, setMyInterests] = useState<string[]>([]);
     const [userId, setUserId] = useState("");
 
     const supabase = createClient();
     const router = useRouter();
 
-    useEffect(() => {
-        const init = async () => {
-            setLoading(true);
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                setUserId(user.id);
-                const { data } = await supabase.from("profiles").select("interests").eq("id", user.id).single();
-                if (data?.interests) setMyInterests(data.interests);
-            }
-            setLoading(false);
-        };
-        init();
-    }, []);
+    const [status, setStatus] = useState<'idle' | 'searching' | 'matched'>('idle');
+    const [searchInterval, setSearchInterval] = useState<NodeJS.Timeout | null>(null);
+    const hasRedirected = useRef(false);
 
-    const toggleInterest = (tag: string) => {
-        if (myInterests.includes(tag)) {
-            setMyInterests(prev => prev.filter(t => t !== tag));
+    // 🛑 CLEANUP: If user leaves, stop searching
+    useEffect(() => {
+        return () => {
+            if (searchInterval) clearInterval(searchInterval);
+            if (userId) supabase.from("profiles").update({ match_status: 'offline' }).eq("id", userId);
+        };
+    }, [searchInterval, userId]);
+
+    // 👂 PASSIVE LISTENER: Did someone pick ME?
+    useEffect(() => {
+        if (!userId) return;
+
+        const channel = supabase
+            .channel(`match-listener-${userId}`)
+            .on(
+                "postgres_changes",
+                { event: "INSERT", schema: "public", table: "conversation_participants", filter: `user_id=eq.${userId}` },
+                async (payload) => {
+                    // Only react if we are searching (or idle, technically someone could add us as friend, but we treat new convs as matches contextually in lobby)
+                    // Actually, friend requests create conversations only after ACCEPT. 
+                    // New conversations strictly mean a Match (or accepted friend).
+                    // If we are 'searching', this is definitely a match.
+                    if (status === 'searching' && !hasRedirected.current) {
+                        console.log("Someone matched ME! Redirecting...");
+                        hasRedirected.current = true;
+                        if (searchInterval) clearInterval(searchInterval);
+
+                        // Wait a sec for the system message to populate?
+                        // Actually, just go.
+                        router.push(`/dashboard/chats/${payload.new.conversation_id}`);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [userId, status, searchInterval]);
+
+    const startSearch = async () => {
+        if (!userId) return;
+        setStatus('searching');
+        hasRedirected.current = false;
+
+        // 1. Update Profile (Interests + Searching Status)
+        await supabase.from("profiles").update({
+            interests: myInterests,
+            match_status: 'searching'
+        }).eq("id", userId);
+
+        // 2. Start Polling Loop (Active Search)
+        // We try to match every 3 seconds
+        const interval = setInterval(async () => {
+            await performMatchAttempt();
+        }, 3000);
+        setSearchInterval(interval);
+
+        // Try immediately once
+        await performMatchAttempt();
+    };
+
+    const performMatchAttempt = async () => {
+        if (hasRedirected.current) return;
+
+        console.log("Attempting to find match...");
+        const { data, error } = await supabase.rpc('find_match', {
+            p_user_id: userId,
+            p_interests: myInterests
+        });
+
+        if (error) {
+            console.error("Match error:", error);
+            return;
+        }
+
+        // FOUND SOMEONE?
+        if (data && data.length > 0) {
+            const match = data[0]; // { matched_user_id, common_interest }
+            console.log("MATCH FOUND!", match);
+            hasRedirected.current = true;
+
+            // Stop polling
+            if (searchInterval) clearInterval(searchInterval);
+
+            await createMatchConversation(match.matched_user_id, match.common_interest);
         } else {
-            setMyInterests(prev => [...prev, tag]);
+            console.log("No match yet... waiting.");
         }
     };
 
-    const findMatch = async () => {
-        setFinding(true);
+    const createMatchConversation = async (partnerId: string, commonInterest: string | null) => {
+        // 1. Create Conversation
+        const { data: newConv } = await supabase.from("conversations").insert({}).select().single();
+        if (!newConv) return;
 
-        // Save latest interests first
-        await supabase.from("profiles").update({ interests: myInterests }).eq("id", userId);
+        // 2. Add Participants
+        await supabase.from("conversation_participants").insert([
+            { conversation_id: newConv.id, user_id: userId },
+            { conversation_id: newConv.id, user_id: partnerId }
+        ]);
 
-        try {
-            // Strategy: 
-            // 1. Get all users who are NOT me.
-            // 2. Pick one.
-            // 3. Create conversation.
-            // 4. Go there.
-
-            // Fetch a random profile (Simple client-side matching for MVP)
-            const { data: profiles } = await supabase
-                .from("profiles")
-                .select("id")
-                .neq("id", userId)
-                .limit(20);
-
-            if (!profiles || profiles.length === 0) {
-                alert("No other users found in the lounge yet. Invite a friend!");
-                setFinding(false);
-                return;
-            }
-
-            const randomPartner = profiles[Math.floor(Math.random() * profiles.length)];
-
-            // Create or Get Conversation
-            // Check if exists
-            const { data: existingConvs } = await supabase
-                .from("conversation_participants")
-                .select("conversation_id, user_id")
-                .eq("user_id", userId);
-
-            // Fallback: Create new
-            const { data: newConv, error: convError } = await supabase
-                .from("conversations")
-                .insert({})
-                .select()
-                .single();
-
-            if (convError) throw convError;
-
-            await supabase.from("conversation_participants").insert([
-                { conversation_id: newConv.id, user_id: userId },
-                { conversation_id: newConv.id, user_id: randomPartner.id }
-            ]);
-
-            router.push(`/dashboard/chats/${newConv.id}`);
-
-        } catch (e) {
-            console.error(e);
-            alert("Error finding match. Please try again.");
-            setFinding(false);
+        // 3. Greeting Message
+        let greeting = "You are chatting with a stranger. Say hi! 👋";
+        if (commonInterest) {
+            greeting = `You matched based on ${commonInterest}! 🌟`;
         }
+
+        await supabase.from("direct_messages").insert({
+            conversation_id: newConv.id,
+            sender_id: userId, // System message technically from 'me' or we can make a fake system ID? 
+            // For now, 'me' sending the first text is fine, or we can add a 'is_system' flag later.
+            // User request: "The system... inserts the specific Welcome Message".
+            // I'll send it as me for now, but italicized via UI logic later? 
+            // Or better: Use a specific 'System' convention? 
+            // Let's just send it as text for simplicity.
+            content: `[SYSTEM] ${greeting}`
+        });
+
+        // 4. Redirect
+        router.push(`/dashboard/chats/${newConv.id}`);
+    };
+
+    const cancelSearch = async () => {
+        setStatus('idle');
+        if (searchInterval) clearInterval(searchInterval);
+        await supabase.from("profiles").update({ match_status: 'online' }).eq("id", userId);
     };
 
     return (
@@ -137,22 +187,30 @@ export default function MatchLobby() {
                 </div>
 
                 {/* Big Action Button */}
-                <button
-                    onClick={findMatch}
-                    disabled={finding || loading}
-                    className="group relative inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-black transition-all duration-200 bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white hover:bg-zinc-200 disabled:opacity-70 disabled:cursor-not-allowed w-full md:w-auto min-w-[300px]"
-                >
-                    {finding ? (
+                {status === 'searching' ? (
+                    <button
+                        onClick={cancelSearch}
+                        className="group relative inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-white transition-all duration-200 bg-red-500/20 border border-red-500 rounded-full hover:bg-red-500 hover:text-white w-full md:w-auto min-w-[300px]"
+                    >
                         <span className="flex items-center gap-2">
-                            <Loader2 className="animate-spin" /> Looking for stranger...
+                            <XCircle size={20} /> Cancel Search
                         </span>
-                    ) : (
+                        <span className="absolute -bottom-8 text-xs text-zinc-500 animate-pulse">
+                            Searching for a match...
+                        </span>
+                    </button>
+                ) : (
+                    <button
+                        onClick={startSearch}
+                        disabled={loading}
+                        className="group relative inline-flex items-center justify-center px-8 py-5 text-lg font-bold text-black transition-all duration-200 bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white hover:bg-zinc-200 disabled:opacity-70 disabled:cursor-not-allowed w-full md:w-auto min-w-[300px]"
+                    >
                         <span className="flex items-center gap-2">
                             <Search size={20} /> Start New Chat
                         </span>
-                    )}
-                    <div className="absolute -inset-3 rounded-full bg-white/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
+                        <div className="absolute -inset-3 rounded-full bg-white/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                )}
 
             </div>
         </div>
