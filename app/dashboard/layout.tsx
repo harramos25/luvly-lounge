@@ -16,8 +16,9 @@ import {
     X
 } from "lucide-react";
 import UpgradeModal from "@/components/UpgradeModal";
+import { SidebarProvider, useSidebar } from "./sidebar-context";
 
-export default function DashboardLayout({
+function DashboardContent({
     children,
 }: {
     children: React.ReactNode;
@@ -29,7 +30,7 @@ export default function DashboardLayout({
     });
     const [counts, setCounts] = useState({ unread: 0, requests: 0 }); // 🔴 BADGES
 
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const { isOpen: mobileMenuOpen, toggle: toggleMenu, close: closeMenu } = useSidebar();
     const [showUpgrade, setShowUpgrade] = useState(false);
     const [checking, setChecking] = useState(true); // 🔒 GATEKEEPER STATE
 
@@ -165,7 +166,7 @@ export default function DashboardLayout({
                     <h1 className="font-serif text-xl bg-gradient-to-r from-pictorial-carmine to-razzmatazz bg-clip-text text-transparent">
                         Luvly Lounge.
                     </h1>
-                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 text-queen-pink/70 hover:text-white">
+                    <button onClick={toggleMenu} className="p-2 text-queen-pink/70 hover:text-white">
                         <Menu size={24} />
                     </button>
                 </div>
@@ -177,7 +178,7 @@ export default function DashboardLayout({
                     {/* Backdrop */}
                     <div
                         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                        onClick={() => setMobileMenuOpen(false)}
+                        onClick={closeMenu}
                     />
 
                     {/* Sidebar Content */}
@@ -186,7 +187,7 @@ export default function DashboardLayout({
                             <h1 className="font-serif text-2xl bg-gradient-to-r from-pictorial-carmine to-razzmatazz bg-clip-text text-transparent">
                                 Luvly.
                             </h1>
-                            <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-queen-pink/60 hover:text-white">
+                            <button onClick={closeMenu} className="p-2 text-queen-pink/60 hover:text-white">
                                 <X size={24} />
                             </button>
                         </div>
@@ -218,7 +219,7 @@ export default function DashboardLayout({
                                 <Link
                                     key={item.name}
                                     href={item.href}
-                                    onClick={() => setMobileMenuOpen(false)}
+                                    onClick={closeMenu}
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${pathname === item.href ? "bg-razzmatazz/10 text-razzmatazz font-medium" : "text-queen-pink/60 hover:bg-white/5 hover:text-white"}`}
                                 >
                                     <item.icon size={18} /> {item.name}
@@ -233,7 +234,7 @@ export default function DashboardLayout({
                                 <Link
                                     key={item.name}
                                     href={item.href}
-                                    onClick={() => setMobileMenuOpen(false)}
+                                    onClick={closeMenu}
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${pathname === item.href ? "bg-white text-razzmatazz font-bold" : "text-queen-pink/60 hover:bg-white/5 hover:text-white"}`}
                                 >
                                     <item.icon size={18} /> {item.name}
@@ -366,5 +367,13 @@ export default function DashboardLayout({
             <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
 
         </div>
+    );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <SidebarProvider>
+            <DashboardContent>{children}</DashboardContent>
+        </SidebarProvider>
     );
 }

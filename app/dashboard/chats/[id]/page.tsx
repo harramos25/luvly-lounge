@@ -137,23 +137,154 @@ export default function ChatRoom() {
                 reporter_id: userId,
                 reported_id: partner.id,
                 reason: reason
+  const { id } = useParams();
+                const { toggle } = useSidebar(); // Access Sidebar Toggle
+
+                const [messages, setMessages] = useState<any[]>([]);
+                const [newMessage, setNewMessage] = useState("");
+                const [partner, setPartner] = useState<any>(null);
+                const [userId, setUserId] = useState("");
+
+                // SKIP STATES
+                const [isSkipped, setIsSkipped] = useState(false);
+                const [skipReason, setSkipReason] = useState("");
+                const [skipConfirm, setSkipConfirm] = useState(false); // Track confirmation step
+
+                const messagesEndRef = useRef<HTMLDivElement>(null);
+                const supabase = createClient();
+                const router = useRouter();
+
+                // 1. SETUP & LISTENERS
+                useEffect(() => {
+        const init = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            setUserId(user.id);
+
+            // Fetch Partner
+            const { data: conv } = await supabase
+                .from("conversations")
+                .select(`*, conversation_participants(user_id, profiles(full_name, avatar_url))`)
+                .eq("id", id)
+                .single();
+
+            if (conv) {
+                const other = conv.conversation_participants.find((p: any) => p.user_id !== user.id);
+                if (other) setPartner(other.profiles);
+            }
+
+            // Load Messages
+            const { data: msgs } = await supabase
+                .from("direct_messages")
+                .select("*")
+                .eq("conversation_id", id)
+                .order("created_at", { ascending: true });
+
+            if (msgs) {
+                setMessages(msgs);
+                const lastMsg = msgs[msgs.length - 1];
+                if (lastMsg && lastMsg.content.startsWith("[SYSTEM]: SKIP")) {
+                    setIsSkipped(true);
+                    if (lastMsg.sender_id === user.id) {
+                        setSkipReason("You have skipped this chat.");
+                    } else {
+                        setSkipReason("Your match skipped.");
+                    }
+                }
+            }
+
+            // REALTIME LISTENER
+            const channel = supabase
+                .channel(`chat-${id}`)
+                .on(
+                    "postgres_changes",
+                    { event: "INSERT", schema: "public", table: "direct_messages", filter: `conversation_id=eq.${id}` },
+                    (payload) => {
+                        setMessages((prev) => [...prev, payload.new]);
+
+                        if (payload.new.content.startsWith("[SYSTEM]: SKIP")) {
+                            setIsSkipped(true);
+                            if (payload.new.sender_id === user.id) {
+                                setSkipReason("You have skipped this chat.");
+                            } else {
+                                setSkipReason("Your match skipped.");
+                            }
+                        }
+                    }
+                )
+                .subscribe();
+
+            return () => { supabase.removeChannel(channel); };
+        };
+        init();
+    }, [id]);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
+
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMessage.trim() || isSkipped) return;
+        const text = newMessage;
+        setNewMessage("");
+        setSkipConfirm(false); // Reset skip confirm if they type
+
+        await supabase.from("direct_messages").insert({
+            conversation_id: id,
+            sender_id: userId,
+            content: text
+        });
+        await supabase.from("conversations").update({ updated_at: new Date() }).eq("id", id);
+    };
+
+    // --- NEW SKIP LOGIC (Inline Confirmation) ---
+    const handleSkip = async () => {
+        // Step 1: Ask for confirmation (Change button text)
+        if (!skipConfirm) {
+            setSkipConfirm(true);
+            // Optional: Auto-reset after 3 seconds if they don't click again
+            setTimeout(() => setSkipConfirm(false), 3000);
+            return;
+        }
+
+        // Step 2: Actually Skip (Second Click)
+        await supabase.from("direct_messages").insert({
+            conversation_id: id,
+            sender_id: userId,
+            content: "[SYSTEM]: SKIP"
+        });
+
+        setIsSkipped(true);
+        setSkipReason("You have skipped this chat.");
+        setSkipConfirm(false);
+    };
+
+    const handleReport = async () => {
+        const reason = prompt("Why are you reporting this user?");
+        if (reason && partner) {
+            await supabase.from("reports").insert({
+                reporter_id: userId,
+                reported_id: partner.id,
+                reason: reason
             });
             alert("Report submitted.");
-            router.push('/dashboard');
+            router.push('/dashboard/match');
         }
     };
 
-    // 3. RENDER (FIXED LAYOUT)
     return (
-        // FIX: Using 'fixed inset-0' and 'h-[100dvh]' prevents the whole page from scrolling
         <div className="fixed inset-0 flex flex-col h-[100dvh] bg-[#18181b] text-white font-sans overflow-hidden">
 
-            {/* HEADER - Fixed Height, Z-Index High */}
+            {/* HEADER */}
             <div className="flex-none h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 shadow-sm z-50">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => router.push('/dashboard')}>
-                        <Menu size={24} className="text-zinc-400" />
+
+                    {/* HAMBURGER MENU: Now Toggles Sidebar! */}
+                    <button onClick={toggle}>
+                        <Menu size={24} className="text-zinc-400 hover:text-white transition-colors" />
                     </button>
+
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
                             {partner?.avatar_url && <img src={partner.avatar_url} className="w-full h-full object-cover" />}
@@ -172,10 +303,9 @@ export default function ChatRoom() {
                 </button>
             </div>
 
-            {/* MESSAGES - Flex-1 makes it fill remaining space. Overflow-y-auto makes ONLY this part scroll */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full">
+            {/* MESSAGES */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
                 {messages.map((msg) => {
-
                     if (msg.content === "[SYSTEM]: SKIP") return null;
 
                     if (msg.content.startsWith("[SYSTEM]:")) {
@@ -209,17 +339,23 @@ export default function ChatRoom() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* FOOTER - Fixed at bottom because it is inside the flex container */}
+            {/* FOOTER */}
             <div className="flex-none z-50 bg-[#111]">
                 {!isSkipped ? (
                     <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
+
+                        {/* SKIP BUTTON WITH CONFIRM STATE */}
                         <button
                             onClick={handleSkip}
-                            className="h-12 px-5 bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-orange-900/10"
+                            className={`h-12 px-5 font-bold text-sm rounded-xl transition-all shadow-lg min-w-[80px] ${skipConfirm
+                                    ? "bg-red-600 hover:bg-red-700 text-white animate-pulse" // Confirm State
+                                    : "bg-[#ea580c] hover:bg-[#c2410c] text-white shadow-orange-900/10" // Normal State
+                                }`}
                         >
-                            SKIP
+                            {skipConfirm ? "CONFIRM" : "SKIP"}
                         </button>
-                        <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px] focus-within:ring-2 focus-within:ring-[#A67CFF]/50 transition-all">
+
+                        <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px]">
                             <button className="p-2 text-zinc-500 hover:text-white transition-colors"><ImageIcon size={20} /></button>
                             <form onSubmit={handleSendMessage} className="flex-1 flex">
                                 <input
