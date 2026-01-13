@@ -143,12 +143,13 @@ export default function ChatRoom() {
         }
     };
 
-    // 3. RENDER
+    // 3. RENDER (FIXED LAYOUT)
     return (
-        <div className="flex flex-col h-screen bg-[#18181b] text-white font-sans">
+        // FIX: Using 'fixed inset-0' and 'h-[100dvh]' prevents the whole page from scrolling
+        <div className="fixed inset-0 flex flex-col h-[100dvh] bg-[#18181b] text-white font-sans overflow-hidden">
 
-            {/* HEADER */}
-            <div className="h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 shadow-sm z-10">
+            {/* HEADER - Fixed Height, Z-Index High */}
+            <div className="flex-none h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 shadow-sm z-50">
                 <div className="flex items-center gap-4">
                     <button onClick={() => router.push('/dashboard')}>
                         <Menu size={24} className="text-zinc-400" />
@@ -171,14 +172,12 @@ export default function ChatRoom() {
                 </button>
             </div>
 
-            {/* MESSAGES */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b]">
+            {/* MESSAGES - Flex-1 makes it fill remaining space. Overflow-y-auto makes ONLY this part scroll */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full">
                 {messages.map((msg) => {
 
-                    // HIDE THE RAW SKIP CODE from the bubbles
                     if (msg.content === "[SYSTEM]: SKIP") return null;
 
-                    // SYSTEM MESSAGE (The Purple "Matched" Text)
                     if (msg.content.startsWith("[SYSTEM]:")) {
                         return (
                             <div key={msg.id} className="text-center my-6 animate-in fade-in zoom-in">
@@ -190,7 +189,6 @@ export default function ChatRoom() {
                         );
                     }
 
-                    // CHAT BUBBLES
                     const isMe = msg.sender_id === userId;
                     return (
                         <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
@@ -211,53 +209,52 @@ export default function ChatRoom() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* FOOTER AREA */}
-            {!isSkipped ? (
-                // --- ACTIVE CHAT ---
-                <div className="p-3 bg-[#111] border-t border-zinc-800 flex items-end gap-2">
-                    <button
-                        onClick={handleSkip}
-                        className="h-12 px-5 bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-orange-900/10"
-                    >
-                        SKIP
-                    </button>
-                    <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px] focus-within:ring-2 focus-within:ring-[#A67CFF]/50 transition-all">
-                        <button className="p-2 text-zinc-500 hover:text-white transition-colors"><ImageIcon size={20} /></button>
-                        <form onSubmit={handleSendMessage} className="flex-1 flex">
-                            <input
-                                value={newMessage}
-                                onChange={(e) => setNewMessage(e.target.value)}
-                                placeholder="Send a message"
-                                className="w-full bg-transparent text-white px-2 outline-none text-sm placeholder-zinc-500"
-                            />
-                            <button type="submit" disabled={!newMessage.trim()} className="p-2 text-zinc-500 hover:text-[#A67CFF] disabled:opacity-50 transition-colors">
-                                <Send size={20} />
-                            </button>
-                        </form>
-                        <button className="p-2 text-zinc-500 hover:text-yellow-400 transition-colors"><Smile size={20} /></button>
-                    </div>
-                </div>
-            ) : (
-                // --- SKIPPED OVERLAY ---
-                <div className="p-6 bg-[#111] border-t border-red-900/30 flex flex-col gap-4 animate-in slide-in-from-bottom-10">
-                    <div className="flex items-center gap-3">
-                        <HeartOff className="text-[#FF6B91]" size={24} />
-                        <div>
-                            {/* DYNAMIC TEXT: "You have skipped" OR "Your match skipped" */}
-                            <p className="font-bold text-white text-lg">{skipReason}</p>
-                            <p className="text-xs text-zinc-500">The conversation has ended.</p>
+            {/* FOOTER - Fixed at bottom because it is inside the flex container */}
+            <div className="flex-none z-50 bg-[#111]">
+                {!isSkipped ? (
+                    <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
+                        <button
+                            onClick={handleSkip}
+                            className="h-12 px-5 bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-orange-900/10"
+                        >
+                            SKIP
+                        </button>
+                        <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px] focus-within:ring-2 focus-within:ring-[#A67CFF]/50 transition-all">
+                            <button className="p-2 text-zinc-500 hover:text-white transition-colors"><ImageIcon size={20} /></button>
+                            <form onSubmit={handleSendMessage} className="flex-1 flex">
+                                <input
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    placeholder="Send a message"
+                                    className="w-full bg-transparent text-white px-2 outline-none text-sm placeholder-zinc-500"
+                                />
+                                <button type="submit" disabled={!newMessage.trim()} className="p-2 text-zinc-500 hover:text-[#A67CFF] disabled:opacity-50 transition-colors">
+                                    <Send size={20} />
+                                </button>
+                            </form>
+                            <button className="p-2 text-zinc-500 hover:text-yellow-400 transition-colors"><Smile size={20} /></button>
                         </div>
                     </div>
-                    <div className="flex gap-3">
-                        <button onClick={handleReport} className="flex items-center gap-2 px-4 py-3 bg-[#27272a] hover:bg-red-900/50 hover:text-red-400 rounded-xl text-zinc-300 font-bold text-sm transition-colors">
-                            <ShieldAlert size={16} /> Report
-                        </button>
-                        <button onClick={() => router.push('/dashboard')} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white font-bold text-sm rounded-xl hover:scale-[1.02] transition-transform shadow-lg shadow-purple-500/20">
-                            <Zap size={18} fill="currentColor" /> Find New Match
-                        </button>
+                ) : (
+                    <div className="p-6 border-t border-red-900/30 flex flex-col gap-4 animate-in slide-in-from-bottom-10 pb-safe">
+                        <div className="flex items-center gap-3">
+                            <HeartOff className="text-[#FF6B91]" size={24} />
+                            <div>
+                                <p className="font-bold text-white text-lg">{skipReason}</p>
+                                <p className="text-xs text-zinc-500">The conversation has ended.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={handleReport} className="flex items-center gap-2 px-4 py-3 bg-[#27272a] hover:bg-red-900/50 hover:text-red-400 rounded-xl text-zinc-300 font-bold text-sm transition-colors">
+                                <ShieldAlert size={16} /> Report
+                            </button>
+                            <button onClick={() => router.push('/dashboard')} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white font-bold text-sm rounded-xl hover:scale-[1.02] transition-transform shadow-lg shadow-purple-500/20">
+                                <Zap size={18} fill="currentColor" /> Find New Match
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
 
         </div>
     );
