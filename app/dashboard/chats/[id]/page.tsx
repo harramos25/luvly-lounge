@@ -3,17 +3,9 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
-// 🛡️ SAFETY IMPORTS: All icons included so Vercel won't crash
 import {
-    Send,
-    MoreVertical,
-    ShieldAlert,
-    UserPlus,
-    ArrowLeft,
-    XCircle,
-    Check,
-    MessageCircle,
-    Sparkles
+    Send, ShieldAlert, Menu, MoreVertical,
+    Sparkles, Smile, Image as ImageIcon, HeartOff, Zap, Flag
 } from "lucide-react";
 
 export default function ChatRoom() {
@@ -21,76 +13,77 @@ export default function ChatRoom() {
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [partner, setPartner] = useState<any>(null);
-    const [friendStatus, setFriendStatus] = useState<string | null>(null);
     const [userId, setUserId] = useState("");
+
+    // --- SKIP STATES ---
+    const [isSkipped, setIsSkipped] = useState(false);
+    const [skipReason, setSkipReason] = useState(""); // "You have skipped..." vs "Your match skipped."
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
     const router = useRouter();
 
+    // 1. SETUP & LISTENERS
     useEffect(() => {
         const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
             setUserId(user.id);
 
-            // 1. Fetch Chat Info & Partner
+            // Fetch Partner Details
             const { data: conv } = await supabase
                 .from("conversations")
-                .select(`
-          *,
-          conversation_participants (
-            user_id,
-            profiles ( id, full_name, avatar_url )
-          )
-        `)
+                .select(`*, conversation_participants(user_id, profiles(full_name, avatar_url))`)
                 .eq("id", id)
                 .single();
 
             if (conv) {
                 const other = conv.conversation_participants.find((p: any) => p.user_id !== user.id);
-                if (other) {
-                    setPartner(other.profiles);
-                    checkFriendStatus(user.id, other.user_id);
-                }
+                if (other) setPartner(other.profiles);
             }
 
-            // 2. Load Messages & MARKET AS READ
-            // First, mark all incoming messages as read
-            await supabase
-                .from("direct_messages")
-                .update({ is_read: true })
-                .eq("conversation_id", id)
-                .neq("sender_id", user.id); // Only mark OTHER's messages
-
+            // Load Messages
             const { data: msgs } = await supabase
                 .from("direct_messages")
                 .select("*")
                 .eq("conversation_id", id)
                 .order("created_at", { ascending: true });
 
-            if (msgs) setMessages(msgs);
+            if (msgs) {
+                setMessages(msgs);
+                // Check history: Did someone already skip?
+                const lastMsg = msgs[msgs.length - 1];
+                if (lastMsg && lastMsg.content.startsWith("[SYSTEM]: SKIP")) {
+                    setIsSkipped(true);
+                    // If the system message says "SKIP_BY_USER_ID", we check if it was ME or THEM.
+                    // For simplicity, we check the sender_id of that system message.
+                    if (lastMsg.sender_id === user.id) {
+                        setSkipReason("You have skipped this chat.");
+                    } else {
+                        setSkipReason("Your match skipped.");
+                    }
+                }
+            }
 
-            // 3. Realtime Listener
+            // REALTIME LISTENER
             const channel = supabase
                 .channel(`chat-${id}`)
                 .on(
                     "postgres_changes",
                     { event: "INSERT", schema: "public", table: "direct_messages", filter: `conversation_id=eq.${id}` },
-                    async (payload) => {
-                        const newMsg = payload.new;
-                        setMessages((prev) => {
-                            // Prevent Duplicates
-                            if (prev.some(m => m.id === newMsg.id)) return prev;
-                            return [...prev, newMsg];
-                        });
+                    (payload) => {
+                        setMessages((prev) => [...prev, payload.new]);
 
-                        // If it's from the OTHER person, mark as read immediately
-                        if (newMsg.sender_id !== user.id) {
-                            await supabase
-                                .from("direct_messages")
-                                .update({ is_read: true })
-                                .eq("id", newMsg.id);
+                        // --- DETECT SKIP EVENT ---
+                        if (payload.new.content.startsWith("[SYSTEM]: SKIP")) {
+                            setIsSkipped(true);
+                            if (payload.new.sender_id === user.id) {
+                                // I sent this message, so I skipped.
+                                setSkipReason("You have skipped this chat.");
+                            } else {
+                                // Partner sent this message.
+                                setSkipReason("Your match skipped.");
+                            }
                         }
                     }
                 )
@@ -105,160 +98,110 @@ export default function ChatRoom() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    const checkFriendStatus = async (myId: string, theirId: string) => {
-        const { data } = await supabase
-            .from("friends")
-            .select("status")
-            .or(`and(user_a.eq.${myId},user_b.eq.${theirId}),and(user_a.eq.${theirId},user_b.eq.${myId})`)
-            .single();
-        if (data) setFriendStatus(data.status);
-    };
+    // 2. HANDLERS
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim()) return;
+        if (!newMessage.trim() || isSkipped) return;
         const text = newMessage;
         setNewMessage("");
 
-        // We rely on Realtime to show the message. 
-        // Failing that, the user might think it failed? 
-        // Let's rely on Realtime for now as it's cleaner than handling optimistic temp IDs.
         await supabase.from("direct_messages").insert({
             conversation_id: id,
             sender_id: userId,
             content: text
         });
-        // Update timestamp to bump chat to top of list
         await supabase.from("conversations").update({ updated_at: new Date() }).eq("id", id);
     };
 
-    // --- BUTTON ACTIONS ---
+    const handleSkip = async () => {
+        if (!confirm("Are you sure you want to skip?")) return;
 
-    const handleAddFriend = async () => {
-        if (!partner) return;
-        await supabase.from("friends").insert({ user_a: userId, user_b: partner.id, status: 'pending' });
-        setFriendStatus('pending');
-        alert("Friend request sent! ✨");
+        // 1. SEND SIGNAL TO PARTNER
+        // We send a special system message so their screen updates too.
+        await supabase.from("direct_messages").insert({
+            conversation_id: id,
+            sender_id: userId,
+            content: "[SYSTEM]: SKIP" // Simple code we detect in the listener
+        });
+
+        // 2. UPDATE MY UI IMMEDIATELY
+        setIsSkipped(true);
+        setSkipReason("You have skipped this chat.");
     };
 
     const handleReport = async () => {
-        if (!partner) return;
-        const reason = prompt("⚠️ REPORT USER\nWhy are you reporting this user? (Harassment, Fake, etc)");
-        if (reason) {
+        const reason = prompt("Why are you reporting this user?");
+        if (reason && partner) {
             await supabase.from("reports").insert({
                 reporter_id: userId,
                 reported_id: partner.id,
                 reason: reason
             });
-            alert("Report submitted. An admin will review this.");
-            router.push('/dashboard'); // Instant Redirect for safety
-        }
-    };
-
-    const handleSkip = () => {
-        // "Skip" means leave this chat and go back to find a NEW one.
-        if (confirm("Leave this conversation?")) {
+            alert("Report submitted.");
             router.push('/dashboard');
         }
     };
 
-    const handleBack = () => {
-        // Smart Redirect:
-        // Friends -> Go back to Inbox
-        // Strangers -> Go back to Lounge (Dashboard)
-        if (friendStatus === 'accepted') {
-            router.push('/dashboard/chats');
-        } else {
-            router.push('/dashboard');
-        }
-    };
-
+    // 3. RENDER
     return (
-        <div className="flex flex-col h-screen bg-yankees-blue text-white">
+        <div className="flex flex-col h-screen bg-[#18181b] text-white font-sans">
 
             {/* HEADER */}
-            <div className="h-16 border-b border-white/10 flex items-center justify-between px-4 bg-yankees-blue">
-                <div className="flex items-center gap-3">
-                    {friendStatus === 'accepted' && (
-                        <button onClick={() => router.push('/dashboard/chats')} className="p-2 hover:bg-white/5 rounded-full text-queen-pink/50">
-                            <ArrowLeft size={20} />
-                        </button>
-                    )}
-
-                    <div className="w-10 h-10 rounded-full bg-black/40 overflow-hidden border border-white/10">
-                        {partner?.avatar_url && <img src={partner.avatar_url} className="w-full h-full object-cover" />}
-                    </div>
-                    <div>
-                        <h2 className="font-bold text-sm">{partner?.full_name || "Loading..."}</h2>
-                        {friendStatus === 'pending' && <span className="text-[10px] text-queen-pink/50 flex items-center gap-1"><Check size={10} /> Request Sent</span>}
-                        {friendStatus === 'accepted' && <span className="text-[10px] text-green-400 font-bold">Friend</span>}
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    {/* ADD FRIEND (Only if not friends) */}
-                    {!friendStatus && (
-                        <button
-                            onClick={handleAddFriend}
-                            className="p-2 bg-razzmatazz/10 text-razzmatazz rounded-full hover:bg-razzmatazz/20 transition-colors"
-                            title="Add Friend"
-                        >
-                            <UserPlus size={18} />
-                        </button>
-                    )}
-
-                    {/* REPORT (Shield) */}
-                    <button
-                        onClick={handleReport}
-                        className="p-2 text-queen-pink/50 hover:text-red-500 transition-colors"
-                        title="Report User"
-                    >
-                        <ShieldAlert size={18} />
+            <div className="h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 shadow-sm z-10">
+                <div className="flex items-center gap-4">
+                    <button onClick={() => router.push('/dashboard')}>
+                        <Menu size={24} className="text-zinc-400" />
                     </button>
-
-                    {/* SKIP (Only show for non-friends / strangers) */}
-                    {friendStatus !== 'accepted' && (
-                        <button
-                            onClick={handleSkip}
-                            className="px-4 py-1.5 bg-white/5 text-xs font-bold rounded-lg hover:bg-white/10 ml-2 transition-colors flex items-center gap-2 text-queen-pink/70"
-                        >
-                            <XCircle size={14} /> Skip
-                        </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
+                            {partner?.avatar_url && <img src={partner.avatar_url} className="w-full h-full object-cover" />}
+                        </div>
+                        <div>
+                            <h2 className="font-bold text-sm text-zinc-100">{partner?.full_name || "..."}</h2>
+                            <div className="flex items-center gap-1.5">
+                                <div className={`w-2 h-2 rounded-full ${isSkipped ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
+                                <span className="text-[10px] text-zinc-500">{isSkipped ? "Disconnected" : "Online"}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                <button className="text-zinc-400 hover:text-white">
+                    <MoreVertical size={24} />
+                </button>
             </div>
 
             {/* MESSAGES */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-yankees-blue">
-                {messages.length === 0 && (
-                    <div className="text-center mt-10 opacity-50">
-                        <MessageCircle className="mx-auto mb-2 text-queen-pink/30" size={32} />
-                        <p className="text-sm text-queen-pink/50">Start the conversation!</p>
-                    </div>
-                )}
-
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b]">
                 {messages.map((msg) => {
-                    const isSystem = msg.content.startsWith("[SYSTEM]");
 
-                    if (isSystem) {
+                    // HIDE THE RAW SKIP CODE from the bubbles
+                    if (msg.content === "[SYSTEM]: SKIP") return null;
+
+                    // SYSTEM MESSAGE (The Purple "Matched" Text)
+                    if (msg.content.startsWith("[SYSTEM]:")) {
                         return (
-                            <div key={msg.id} className="flex justify-center my-4">
-                                <div className="flex items-center gap-2 px-4 py-1.5 bg-white/10 border border-white/5 rounded-full backdrop-blur-sm">
-                                    <Sparkles size={12} className="text-razzmatazz" />
-                                    <span className="text-[10px] font-bold text-queen-pink/80 tracking-wide uppercase">
-                                        {msg.content.replace("[SYSTEM]", "").trim()}
-                                    </span>
+                            <div key={msg.id} className="text-center my-6 animate-in fade-in zoom-in">
+                                <div className="inline-flex items-center gap-2 text-[#A67CFF] font-medium text-sm bg-[#A67CFF]/10 px-4 py-1 rounded-full border border-[#A67CFF]/20">
+                                    <Sparkles size={14} fill="currentColor" />
+                                    {msg.content.replace("[SYSTEM]: ", "")}
                                 </div>
                             </div>
                         );
                     }
 
+                    // CHAT BUBBLES
                     const isMe = msg.sender_id === userId;
                     return (
                         <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm leading-relaxed ${isMe
-                                ? "bg-razzmatazz text-white font-medium rounded-tr-sm shadow-md shadow-razzmatazz/10"
-                                : "bg-white/5 border border-white/5 text-queen-pink rounded-tl-sm"
+                            {!isMe && (
+                                <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden mr-2 mt-1 flex-shrink-0">
+                                    {partner?.avatar_url && <img src={partner.avatar_url} className="w-full h-full object-cover" />}
+                                </div>
+                            )}
+                            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-[15px] shadow-sm ${isMe
+                                    ? "bg-[#6366f1] text-white rounded-tr-sm"
+                                    : "bg-[#27272a] text-zinc-100 rounded-tl-sm"
                                 }`}>
                                 {msg.content}
                             </div>
@@ -268,22 +211,53 @@ export default function ChatRoom() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* INPUT */}
-            <form onSubmit={handleSendMessage} className="p-4 bg-yankees-blue border-t border-white/10 flex gap-2">
-                <input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1 bg-black/20 border border-white/10 rounded-full px-5 py-3 text-white focus:border-razzmatazz outline-none transition-colors placeholder:text-queen-pink/30"
-                />
-                <button
-                    type="submit"
-                    disabled={!newMessage.trim()}
-                    className="p-3 bg-razzmatazz rounded-full text-white hover:scale-105 transition-transform disabled:opacity-50 shadow-lg shadow-razzmatazz/20"
-                >
-                    <Send size={20} className={newMessage.trim() ? "ml-0.5" : ""} />
-                </button>
-            </form>
+            {/* FOOTER AREA */}
+            {!isSkipped ? (
+                // --- ACTIVE CHAT ---
+                <div className="p-3 bg-[#111] border-t border-zinc-800 flex items-end gap-2">
+                    <button
+                        onClick={handleSkip}
+                        className="h-12 px-5 bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-orange-900/10"
+                    >
+                        SKIP
+                    </button>
+                    <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px] focus-within:ring-2 focus-within:ring-[#A67CFF]/50 transition-all">
+                        <button className="p-2 text-zinc-500 hover:text-white transition-colors"><ImageIcon size={20} /></button>
+                        <form onSubmit={handleSendMessage} className="flex-1 flex">
+                            <input
+                                value={newMessage}
+                                onChange={(e) => setNewMessage(e.target.value)}
+                                placeholder="Send a message"
+                                className="w-full bg-transparent text-white px-2 outline-none text-sm placeholder-zinc-500"
+                            />
+                            <button type="submit" disabled={!newMessage.trim()} className="p-2 text-zinc-500 hover:text-[#A67CFF] disabled:opacity-50 transition-colors">
+                                <Send size={20} />
+                            </button>
+                        </form>
+                        <button className="p-2 text-zinc-500 hover:text-yellow-400 transition-colors"><Smile size={20} /></button>
+                    </div>
+                </div>
+            ) : (
+                // --- SKIPPED OVERLAY ---
+                <div className="p-6 bg-[#111] border-t border-red-900/30 flex flex-col gap-4 animate-in slide-in-from-bottom-10">
+                    <div className="flex items-center gap-3">
+                        <HeartOff className="text-[#FF6B91]" size={24} />
+                        <div>
+                            {/* DYNAMIC TEXT: "You have skipped" OR "Your match skipped" */}
+                            <p className="font-bold text-white text-lg">{skipReason}</p>
+                            <p className="text-xs text-zinc-500">The conversation has ended.</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-3">
+                        <button onClick={handleReport} className="flex items-center gap-2 px-4 py-3 bg-[#27272a] hover:bg-red-900/50 hover:text-red-400 rounded-xl text-zinc-300 font-bold text-sm transition-colors">
+                            <ShieldAlert size={16} /> Report
+                        </button>
+                        <button onClick={() => router.push('/dashboard')} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white font-bold text-sm rounded-xl hover:scale-[1.02] transition-transform shadow-lg shadow-purple-500/20">
+                            <Zap size={18} fill="currentColor" /> Find New Match
+                        </button>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
