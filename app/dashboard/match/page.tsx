@@ -15,7 +15,7 @@ export default function SmartMatchPage() {
     const { toggle } = useSidebar();
 
     // DEBUG LOG
-    console.log("🔹 SMART MATCH HYBRID UI LOADED v2 🔹");
+    console.log("🔹 SMART MATCH HYBRID UI LOADED v3 🔹");
 
     // VIEW STATES
     const [view, setView] = useState<"LOBBY" | "CHAT">("LOBBY");
@@ -278,7 +278,7 @@ export default function SmartMatchPage() {
                             <MessageCircle size={40} className="text-white" />
                         </div>
                         {/* UPDATED TITLE FOR VISUAL VERIFICATION */}
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Luvly Lounge v2</h1>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Luvly Lounge v3</h1>
                     </div>
                     <div className="w-full space-y-4">
                         <div className="bg-[#111] border border-zinc-800 rounded-2xl p-3 flex flex-wrap gap-2 min-h-[60px]">
