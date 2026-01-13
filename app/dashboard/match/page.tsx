@@ -14,19 +14,19 @@ export default function SmartMatchPage() {
     const router = useRouter();
     const { toggle } = useSidebar();
 
-    // --- VIEW STATES ---
+    // VIEW STATES
     const [view, setView] = useState<"LOBBY" | "CHAT">("LOBBY");
     const [showResumeModal, setShowResumeModal] = useState(false);
     const [resumeId, setResumeId] = useState<string | null>(null);
 
-    // --- LOBBY DATA ---
+    // LOBBY DATA
     const [userId, setUserId] = useState("");
     const [myInterests, setMyInterests] = useState<string[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [finding, setFinding] = useState(false);
     const [statusText, setStatusText] = useState("");
 
-    // --- CHAT DATA ---
+    // CHAT DATA
     const [activeConvId, setActiveConvId] = useState<string | null>(null);
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState("");
@@ -52,11 +52,10 @@ export default function SmartMatchPage() {
             // CHECK FOR ACTIVE MATCH TO RESUME
             const storedConvId = localStorage.getItem("active_match_id");
             if (storedConvId) {
-                // Verify if it still exists
                 const { data: conv } = await supabase.from("conversations").select("id").eq("id", storedConvId).single();
                 if (conv) {
                     setResumeId(storedConvId);
-                    setShowResumeModal(true); // Show the "Pop-up"
+                    setShowResumeModal(true); // POP-UP
                 } else {
                     localStorage.removeItem("active_match_id");
                 }
@@ -105,12 +104,8 @@ export default function SmartMatchPage() {
 
     const startMatch = async () => {
         if (myInterests.length === 0) return alert("Add an interest first!");
-
-        console.log("🚀 STARTING MATCH...");
         setFinding(true);
         setStatusText("Entering the lounge...");
-
-        // Mark myself as searching
         await supabase.from("profiles").update({ status: 'searching' }).eq("id", userId);
 
         let attempts = 0;
@@ -118,29 +113,16 @@ export default function SmartMatchPage() {
 
         const interval = setInterval(async () => {
             attempts++;
-            console.log(`🔎 Attempt ${attempts}: Scanning...`);
             setStatusText(attempts % 2 === 0 ? "Scanning for vibes..." : "Looking for a partner...");
 
-            // 1. AM I THE SEEKER? (Can I find someone?)
-            const { data: matchData, error } = await supabase.rpc('search_for_match', {
-                my_id: userId,
-                my_interests: myInterests
-            });
-
-            if (error) console.error("❌ RPC Error:", error);
-            if (matchData) console.log("👀 Match Data:", matchData);
-
+            const { data: matchData } = await supabase.rpc('search_for_match', { my_id: userId, my_interests: myInterests });
             if (matchData && matchData.length > 0) {
-                console.log("✅ PARTNER FOUND!", matchData[0]);
                 clearInterval(interval);
                 const partner = matchData[0];
 
-                // Find/Create Room
                 const { data: existingRoom } = await supabase.rpc('find_conversation_with_user', { other_user_id: partner.partner_id });
                 let convId = existingRoom;
-
                 if (!convId) {
-                    console.log("🔨 Creating new room...");
                     const { data: newRoom } = await supabase.from("conversations").insert({}).select().single();
                     convId = newRoom.id;
                     await supabase.from("conversation_participants").insert([
@@ -149,7 +131,6 @@ export default function SmartMatchPage() {
                     ]);
                 }
 
-                // System Message
                 let sysMsg = partner.shared_interest
                     ? `✨ You both like **${partner.shared_interest}**`
                     : `You are now chatting with **${partner.partner_name}**. Say hi!`;
@@ -161,17 +142,11 @@ export default function SmartMatchPage() {
                 loadChat(convId, userId);
             }
 
-            // 2. AM I THE TARGET? (Did someone find me?)
             const { data: myProfile } = await supabase.from("profiles").select("status").eq("id", userId).single();
-            // console.log("👤 My Status:", myProfile?.status);
-
             if (myProfile?.status === 'busy') {
-                console.log("🔒 I WAS MATCHED! (Status changed to busy)");
                 const { data: recentChat } = await supabase.from("conversation_participants")
                     .select("conversation_id, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).single();
-
                 if (recentChat && (Date.now() - new Date(recentChat.created_at).getTime() < 60000)) {
-                    console.log("🚀 Joining room:", recentChat.conversation_id);
                     clearInterval(interval);
                     loadChat(recentChat.conversation_id, userId);
                 }
@@ -193,15 +168,13 @@ export default function SmartMatchPage() {
         await supabase.from("profiles").update({ status: 'online' }).eq("id", userId);
     };
 
-    // --- CHAT LOGIC ---
     const loadChat = async (convId: string, currentUserId: string) => {
         setActiveConvId(convId);
         setView("CHAT");
         setFinding(false);
         setIsSkipped(false);
-        localStorage.setItem("active_match_id", convId);
+        localStorage.setItem("active_match_id", convId); // SAVE STATE
 
-        // Fetch Partner
         const { data: conv } = await supabase.from("conversations")
             .select(`*, conversation_participants(user_id, profiles(full_name, avatar_url))`)
             .eq("id", convId).single();
@@ -210,7 +183,6 @@ export default function SmartMatchPage() {
             if (other) setPartner(other.profiles);
         }
 
-        // Load Messages
         const { data: msgs } = await supabase.from("direct_messages").select("*").eq("conversation_id", convId).order("created_at", { ascending: true });
         if (msgs) {
             setMessages(msgs);
@@ -221,7 +193,6 @@ export default function SmartMatchPage() {
             }
         }
 
-        // Subscribe
         const channel = supabase.channel(`chat-${convId}`)
             .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages", filter: `conversation_id=eq.${convId}` }, (payload) => {
                 setMessages(prev => [...prev, payload.new]);
@@ -270,7 +241,7 @@ export default function SmartMatchPage() {
 
     // ================= RENDER =================
 
-    // 1. RESUME MODAL (Pop-up)
+    // 1. RESUME MODAL
     if (showResumeModal) {
         return (
             <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
@@ -317,9 +288,18 @@ export default function SmartMatchPage() {
                             {myInterests.length < 3 && (
                                 <div className="flex-1 min-w-[120px] flex items-center gap-2 px-2">
                                     <Plus size={16} className="text-zinc-500" />
-                                    <input value={inputValue} onChange={(e) => setInputValue(e.target.value)}
+
+                                    {/* ACCESSIBILITY FIX 1: LOBBY INPUT */}
+                                    <input
+                                        id="interest-input"
+                                        name="interest"
+                                        value={inputValue}
+                                        onChange={(e) => setInputValue(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && handleAddInterest()}
-                                        placeholder="Add interest..." className="bg-transparent outline-none text-sm text-white w-full" />
+                                        placeholder="Add interest..."
+                                        className="bg-transparent outline-none text-sm text-white w-full"
+                                        autoComplete="off"
+                                    />
                                 </div>
                             )}
                         </div>
@@ -366,7 +346,6 @@ export default function SmartMatchPage() {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
                 {messages.map((msg) => {
-                    // BUBBLE FIX: Only render system pill if it's a system message
                     if (msg.content === "[SYSTEM]: SKIP") return null;
                     if (msg.content.startsWith("[SYSTEM]:")) {
                         return (
@@ -399,7 +378,18 @@ export default function SmartMatchPage() {
                         <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px]">
                             <button className="p-2 text-zinc-500"><ImageIcon size={20} /></button>
                             <form onSubmit={handleSendMessage} className="flex-1 flex">
-                                <input value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Send a message" className="w-full bg-transparent text-white px-2 outline-none text-sm" />
+
+                                {/* ACCESSIBILITY FIX 2: MATCH CHAT INPUT */}
+                                <input
+                                    id="match-message-input"
+                                    name="message"
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    placeholder="Send a message"
+                                    className="w-full bg-transparent text-white px-2 outline-none text-sm"
+                                    autoComplete="off"
+                                />
+
                                 <button type="submit" disabled={!newMessage.trim()} className="p-2 text-zinc-500 hover:text-[#A67CFF]"><Send size={20} /></button>
                             </form>
                         </div>
@@ -412,7 +402,6 @@ export default function SmartMatchPage() {
                         </div>
                         <div className="flex gap-3">
                             <button className="flex items-center gap-2 px-4 py-3 bg-[#27272a] rounded-xl text-zinc-300 font-bold text-sm"><ShieldAlert size={16} /> Report</button>
-                            {/* RESET TO LOBBY BUTTON */}
                             <button onClick={resetToLobby} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white font-bold text-sm rounded-xl hover:scale-[1.02]">
                                 <Zap size={18} fill="currentColor" /> Find New Match
                             </button>

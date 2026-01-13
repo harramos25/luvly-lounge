@@ -26,7 +26,6 @@ export default function ChatRoom() {
     const supabase = createClient();
     const router = useRouter();
 
-    // 1. SETUP & LISTENERS
     useEffect(() => {
         const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -55,11 +54,7 @@ export default function ChatRoom() {
                 const lastMsg = msgs[msgs.length - 1];
                 if (lastMsg && lastMsg.content.startsWith("[SYSTEM]: SKIP")) {
                     setIsSkipped(true);
-                    if (lastMsg.sender_id === user.id) {
-                        setSkipReason("You have skipped this chat.");
-                    } else {
-                        setSkipReason("Your match skipped.");
-                    }
+                    setSkipReason(lastMsg.sender_id === user.id ? "You have skipped this chat." : "Your match skipped.");
                 }
             }
 
@@ -72,11 +67,7 @@ export default function ChatRoom() {
                         setMessages((prev) => [...prev, payload.new]);
                         if (payload.new.content.startsWith("[SYSTEM]: SKIP")) {
                             setIsSkipped(true);
-                            if (payload.new.sender_id === user.id) {
-                                setSkipReason("You have skipped this chat.");
-                            } else {
-                                setSkipReason("Your match skipped.");
-                            }
+                            setSkipReason(payload.new.sender_id === user.id ? "You have skipped this chat." : "Your match skipped.");
                         }
                     }
                 )
@@ -91,7 +82,6 @@ export default function ChatRoom() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    // 2. HANDLERS
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim() || isSkipped) return;
@@ -138,11 +128,8 @@ export default function ChatRoom() {
         }
     };
 
-    // 3. RENDER
     return (
         <div className="fixed inset-0 flex flex-col h-[100dvh] bg-[#18181b] text-white font-sans overflow-hidden">
-
-            {/* HEADER */}
             <div className="flex-none h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 shadow-sm z-50">
                 <div className="flex items-center gap-4">
                     <button onClick={toggle}>
@@ -166,7 +153,6 @@ export default function ChatRoom() {
                 </button>
             </div>
 
-            {/* MESSAGES */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
                 {messages.map((msg) => {
                     if (msg.content === "[SYSTEM]: SKIP") return null;
@@ -203,7 +189,6 @@ export default function ChatRoom() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* FOOTER */}
             <div className="flex-none z-50 bg-[#111]">
                 {!isSkipped ? (
                     <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
@@ -216,16 +201,21 @@ export default function ChatRoom() {
                         >
                             {skipConfirm ? "CONFIRM" : "SKIP"}
                         </button>
-
-                        <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px] focus-within:ring-2 focus-within:ring-[#A67CFF]/50 transition-all">
+                        <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px]">
                             <button className="p-2 text-zinc-500 hover:text-white transition-colors"><ImageIcon size={20} /></button>
                             <form onSubmit={handleSendMessage} className="flex-1 flex">
+
+                                {/* ACCESSIBILITY FIX FOR FRIEND CHAT */}
                                 <input
+                                    id="friend-message-input"
+                                    name="message"
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
                                     placeholder="Send a message"
                                     className="w-full bg-transparent text-white px-2 outline-none text-sm placeholder-zinc-500"
+                                    autoComplete="off"
                                 />
+
                                 <button type="submit" disabled={!newMessage.trim()} className="p-2 text-zinc-500 hover:text-[#A67CFF] disabled:opacity-50 transition-colors">
                                     <Send size={20} />
                                 </button>
