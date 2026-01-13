@@ -119,26 +119,37 @@ export default function SmartMatchPage() {
             setStatusText(attempts % 2 === 0 ? "Scanning for vibes..." : "Looking for a partner...");
 
             const { data: matchData } = await supabase.rpc('search_for_match', { my_id: userId, my_interests: myInterests });
+
             if (matchData && matchData.length > 0) {
                 clearInterval(interval);
-                const partner = matchData[0];
+                const match = matchData[0]; // The partner found
 
-                const { data: existingRoom } = await supabase.rpc('find_conversation_with_user', { other_user_id: partner.partner_id });
+                const { data: existingRoom } = await supabase.rpc('find_conversation_with_user', { other_user_id: match.partner_id });
                 let convId = existingRoom;
                 if (!convId) {
                     const { data: newRoom } = await supabase.from("conversations").insert({}).select().single();
                     convId = newRoom.id;
                     await supabase.from("conversation_participants").insert([
                         { conversation_id: convId, user_id: userId },
-                        { conversation_id: convId, user_id: partner.partner_id }
+                        { conversation_id: convId, user_id: match.partner_id }
                     ]);
                 }
 
-                let sysMsg = partner.shared_interest
-                    ? `✨ You both like **${partner.shared_interest}**`
-                    : `You are now chatting with **${partner.partner_name}**. Say hi!`;
+                // --- MULTIPLE INTERESTS LOGIC ---
+                // If 'shared_interest' comes back as a string like "art", or "art, music", we display it.
+                // We use ** ** to bold the interests in the UI.
+                let interestsText = match.shared_interest;
 
-                // INSERT SYSTEM MESSAGE (Ensure consistent format)
+                // If the database returns an array (advanced setup), join it. 
+                // If it returns a single string, we just use it.
+                if (Array.isArray(interestsText)) {
+                    interestsText = interestsText.join(", ");
+                }
+
+                let sysMsg = interestsText
+                    ? `✨ You both like **${interestsText}**`
+                    : `You are now chatting with **${match.partner_name}**. Say hi!`;
+
                 await supabase.from("direct_messages").insert({
                     conversation_id: convId, sender_id: userId, content: `[SYSTEM] ${sysMsg}`
                 });
@@ -228,7 +239,7 @@ export default function SmartMatchPage() {
 
         await supabase.from("direct_messages").insert({ conversation_id: activeConvId, sender_id: userId, content: "[SYSTEM]: SKIP" });
         setIsSkipped(true);
-        setSkipReason("You have skipped.");
+        setSkipReason("You have skipped this chat.");
         setSkipConfirm(false);
         localStorage.removeItem("active_match_id");
     };
@@ -255,7 +266,7 @@ export default function SmartMatchPage() {
         );
     }
 
-    // LOBBY
+    // --- LOBBY VIEW (First Load) ---
     if (view === "LOBBY") {
         return (
             <div className="h-full bg-[#0a0a0a] text-white flex flex-col items-center relative font-sans overflow-hidden">
@@ -267,7 +278,7 @@ export default function SmartMatchPage() {
                         <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-[#FF6B91] to-[#A67CFF] rounded-3xl flex items-center justify-center shadow-lg shadow-purple-500/20">
                             <MessageCircle size={40} className="text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Luvly Lounge v6</h1>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Luvly Lounge</h1>
                     </div>
                     <div className="w-full space-y-4">
                         <div className="bg-[#111] border border-zinc-800 rounded-2xl p-3 flex flex-wrap gap-2 min-h-[60px]">
@@ -293,10 +304,11 @@ export default function SmartMatchPage() {
         );
     }
 
-    // CHAT + MINI LOBBY
+    // --- CHAT + MINI LOBBY VIEW ---
     return (
         <div className="absolute inset-0 flex flex-col bg-[#18181b] text-white font-sans overflow-hidden">
 
+            {/* HEADER */}
             <div className="flex-none h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 z-50">
                 <div className="flex items-center gap-4">
                     <button onClick={toggle}><Menu size={24} className="text-zinc-400" /></button>
@@ -316,6 +328,7 @@ export default function SmartMatchPage() {
                 <button className="text-zinc-400"><MoreVertical size={24} /></button>
             </div>
 
+            {/* MESSAGES */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
                 {finding && (
                     <div className="h-full flex flex-col items-center justify-center space-y-4 text-zinc-500">
@@ -328,13 +341,24 @@ export default function SmartMatchPage() {
                 {!finding && messages.map((msg) => {
                     if (msg.content.includes("SKIP") && msg.content.includes("[SYSTEM]")) return null;
 
-                    // --- FIX: CHECK FOR [SYSTEM] WITHOUT COLON ---
                     if (msg.content.startsWith("[SYSTEM]")) {
+                        // Clean up the "[SYSTEM]" or "[SYSTEM]:" prefix
                         const displayText = msg.content.replace(/\[SYSTEM\]:? /, "");
+
+                        // Check if there is bold text marked with **
+                        const parts = displayText.split(/(\*\*.*?\*\*)/g);
+
                         return (
                             <div key={msg.id} className="text-center my-6 animate-in fade-in zoom-in">
                                 <div className="inline-flex items-center gap-2 text-[#A67CFF] font-medium text-sm bg-[#A67CFF]/10 px-4 py-1 rounded-full border border-[#A67CFF]/20 shadow-sm">
-                                    <Sparkles size={14} fill="currentColor" /> {displayText}
+                                    <Sparkles size={14} fill="currentColor" />
+                                    <span>
+                                        {parts.map((part, i) =>
+                                            part.startsWith("**") && part.endsWith("**")
+                                                ? <strong key={i} className="text-white ml-1 mr-1">{part.slice(2, -2)}</strong>
+                                                : part
+                                        )}
+                                    </span>
                                 </div>
                             </div>
                         );
@@ -352,7 +376,10 @@ export default function SmartMatchPage() {
                 <div ref={messagesEndRef} />
             </div>
 
+            {/* FOOTER - DYNAMIC STATE */}
             <div className="flex-none z-50 bg-[#111]">
+
+                {/* STATE A: ACTIVE CHAT */}
                 {!isSkipped && !finding ? (
                     <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
                         <button onClick={handleSkip} className={`h-12 px-5 font-bold text-sm rounded-xl transition-all shadow-lg min-w-[80px] ${skipConfirm ? "bg-red-600 animate-pulse text-white" : "bg-[#ea580c] text-white"}`}>
@@ -368,6 +395,8 @@ export default function SmartMatchPage() {
                     </div>
 
                 ) : isSkipped ? (
+
+                    // STATE B: SKIPPED "MINI LOBBY" (CORRECT UI)
                     <div className="p-4 border-t border-red-900/30 flex flex-col gap-4 animate-in slide-in-from-bottom-10 pb-safe bg-[#0d0d0d]">
                         <div className="flex items-center gap-3">
                             <HeartOff className="text-[#FF6B91]" size={20} />
@@ -375,6 +404,7 @@ export default function SmartMatchPage() {
                             <button onClick={() => alert('Reported')} className="ml-auto flex items-center gap-1 bg-red-900/30 text-red-400 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-900/50"><ShieldAlert size={12} /> Report</button>
                         </div>
 
+                        {/* Interest Editor - Same styling as ChitChat */}
                         <div className="bg-[#1a1a1a] rounded-xl p-3 border border-zinc-800">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-xs font-bold text-zinc-400 flex items-center gap-1"><Zap size={12} className="text-green-500" /> Interests (ON)</span>
