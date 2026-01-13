@@ -12,7 +12,8 @@ import {
     ArrowLeft,
     XCircle,
     Check,
-    MessageCircle
+    MessageCircle,
+    Sparkles
 } from "lucide-react";
 
 export default function ChatRoom() {
@@ -237,6 +238,21 @@ export default function ChatRoom() {
                 )}
 
                 {messages.map((msg) => {
+                    const isSystem = msg.content.startsWith("[SYSTEM]");
+
+                    if (isSystem) {
+                        return (
+                            <div key={msg.id} className="flex justify-center my-4">
+                                <div className="flex items-center gap-2 px-4 py-1.5 bg-white/10 border border-white/5 rounded-full backdrop-blur-sm">
+                                    <Sparkles size={12} className="text-razzmatazz" />
+                                    <span className="text-[10px] font-bold text-queen-pink/80 tracking-wide uppercase">
+                                        {msg.content.replace("[SYSTEM]", "").trim()}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    }
+
                     const isMe = msg.sender_id === userId;
                     return (
                         <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
