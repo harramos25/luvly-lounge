@@ -14,9 +14,10 @@ export default function SmartMatchPage() {
     const router = useRouter();
     const { toggle } = useSidebar();
 
+    // DEBUG LOG
+    console.log("🔹 SMART MATCH HYBRID UI LOADED v2 🔹");
+
     // VIEW STATES
-    // "LOBBY" = The initial big dashboard.
-    // "CHAT" = The active chat screen (which also handles the 'Skipped' state internally)
     const [view, setView] = useState<"LOBBY" | "CHAT">("LOBBY");
     const [showResumeModal, setShowResumeModal] = useState(false);
     const [resumeId, setResumeId] = useState<string | null>(null);
@@ -276,7 +277,8 @@ export default function SmartMatchPage() {
                         <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-[#FF6B91] to-[#A67CFF] rounded-3xl flex items-center justify-center shadow-lg shadow-purple-500/20">
                             <MessageCircle size={40} className="text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Luvly Lounge</h1>
+                        {/* UPDATED TITLE FOR VISUAL VERIFICATION */}
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Luvly Lounge v2</h1>
                     </div>
                     <div className="w-full space-y-4">
                         <div className="bg-[#111] border border-zinc-800 rounded-2xl p-3 flex flex-wrap gap-2 min-h-[60px]">
