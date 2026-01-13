@@ -101,7 +101,6 @@ export default function SmartMatchPage() {
     const startMatch = async () => {
         if (myInterests.length === 0) return alert("Add an interest first!");
 
-        // RESET STATE FOR NEW SEARCH
         setFinding(true);
         setIsSkipped(false);
         setMessages([]);
@@ -139,8 +138,9 @@ export default function SmartMatchPage() {
                     ? `✨ You both like **${partner.shared_interest}**`
                     : `You are now chatting with **${partner.partner_name}**. Say hi!`;
 
+                // INSERT SYSTEM MESSAGE (Ensure consistent format)
                 await supabase.from("direct_messages").insert({
-                    conversation_id: convId, sender_id: userId, content: `[SYSTEM]: ${sysMsg}`
+                    conversation_id: convId, sender_id: userId, content: `[SYSTEM] ${sysMsg}`
                 });
 
                 loadChat(convId, userId);
@@ -194,7 +194,7 @@ export default function SmartMatchPage() {
         if (msgs) {
             setMessages(msgs);
             const last = msgs[msgs.length - 1];
-            if (last && last.content.startsWith("[SYSTEM]: SKIP")) {
+            if (last && last.content.includes("[SYSTEM]") && last.content.includes("SKIP")) {
                 setIsSkipped(true);
                 setSkipReason(last.sender_id === currentUserId ? "You have skipped this chat." : "Partner skipped.");
             }
@@ -203,7 +203,7 @@ export default function SmartMatchPage() {
         const channel = supabase.channel(`chat-${convId}`)
             .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages", filter: `conversation_id=eq.${convId}` }, (payload) => {
                 setMessages(prev => [...prev, payload.new]);
-                if (payload.new.content.startsWith("[SYSTEM]: SKIP")) {
+                if (payload.new.content.includes("[SYSTEM]") && payload.new.content.includes("SKIP")) {
                     setIsSkipped(true);
                     setSkipReason(payload.new.sender_id === currentUserId ? "You have skipped this chat." : "Partner skipped.");
                 }
@@ -228,7 +228,7 @@ export default function SmartMatchPage() {
 
         await supabase.from("direct_messages").insert({ conversation_id: activeConvId, sender_id: userId, content: "[SYSTEM]: SKIP" });
         setIsSkipped(true);
-        setSkipReason("You have skipped this chat.");
+        setSkipReason("You have skipped.");
         setSkipConfirm(false);
         localStorage.removeItem("active_match_id");
     };
@@ -240,7 +240,6 @@ export default function SmartMatchPage() {
 
     // ================= RENDER =================
 
-    // 1. RESUME MODAL
     if (showResumeModal) {
         return (
             <div className="h-full flex items-center justify-center p-4 bg-[#0a0a0a]">
@@ -256,7 +255,7 @@ export default function SmartMatchPage() {
         );
     }
 
-    // 2. MAIN DASHBOARD (Lobby)
+    // LOBBY
     if (view === "LOBBY") {
         return (
             <div className="h-full bg-[#0a0a0a] text-white flex flex-col items-center relative font-sans overflow-hidden">
@@ -294,11 +293,10 @@ export default function SmartMatchPage() {
         );
     }
 
-    // 3. CHAT VIEW (Contains Active Chat + "Mini Lobby" when skipped)
+    // CHAT + MINI LOBBY
     return (
         <div className="absolute inset-0 flex flex-col bg-[#18181b] text-white font-sans overflow-hidden">
 
-            {/* HEADER */}
             <div className="flex-none h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 z-50">
                 <div className="flex items-center gap-4">
                     <button onClick={toggle}><Menu size={24} className="text-zinc-400" /></button>
@@ -318,9 +316,7 @@ export default function SmartMatchPage() {
                 <button className="text-zinc-400"><MoreVertical size={24} /></button>
             </div>
 
-            {/* MESSAGES AREA */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
-                {/* Loading Spinner in middle if searching */}
                 {finding && (
                     <div className="h-full flex flex-col items-center justify-center space-y-4 text-zinc-500">
                         <Loader2 size={48} className="animate-spin text-[#FF6B91]" />
@@ -329,16 +325,16 @@ export default function SmartMatchPage() {
                     </div>
                 )}
 
-                {/* Chat History */}
                 {!finding && messages.map((msg) => {
-                    if (msg.content === "[SYSTEM]: SKIP") return null;
+                    if (msg.content.includes("SKIP") && msg.content.includes("[SYSTEM]")) return null;
 
-                    // SYSTEM PILL FIX: This renders the system message as a Pill, NOT a bubble.
-                    if (msg.content.startsWith("[SYSTEM]:")) {
+                    // --- FIX: CHECK FOR [SYSTEM] WITHOUT COLON ---
+                    if (msg.content.startsWith("[SYSTEM]")) {
+                        const displayText = msg.content.replace(/\[SYSTEM\]:? /, "");
                         return (
                             <div key={msg.id} className="text-center my-6 animate-in fade-in zoom-in">
                                 <div className="inline-flex items-center gap-2 text-[#A67CFF] font-medium text-sm bg-[#A67CFF]/10 px-4 py-1 rounded-full border border-[#A67CFF]/20 shadow-sm">
-                                    <Sparkles size={14} fill="currentColor" /> {msg.content.replace("[SYSTEM]: ", "")}
+                                    <Sparkles size={14} fill="currentColor" /> {displayText}
                                 </div>
                             </div>
                         );
@@ -356,10 +352,7 @@ export default function SmartMatchPage() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* FOOTER - DYNAMIC STATE */}
             <div className="flex-none z-50 bg-[#111]">
-
-                {/* STATE A: ACTIVE CHAT (Input Bar) */}
                 {!isSkipped && !finding ? (
                     <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
                         <button onClick={handleSkip} className={`h-12 px-5 font-bold text-sm rounded-xl transition-all shadow-lg min-w-[80px] ${skipConfirm ? "bg-red-600 animate-pulse text-white" : "bg-[#ea580c] text-white"}`}>
@@ -375,18 +368,13 @@ export default function SmartMatchPage() {
                     </div>
 
                 ) : isSkipped ? (
-
-                    // STATE B: SKIPPED "MINI LOBBY" (Matches ChitChat UI)
                     <div className="p-4 border-t border-red-900/30 flex flex-col gap-4 animate-in slide-in-from-bottom-10 pb-safe bg-[#0d0d0d]">
-
-                        {/* 1. Status Message */}
                         <div className="flex items-center gap-3">
                             <HeartOff className="text-[#FF6B91]" size={20} />
                             <p className="font-bold text-white text-md">{skipReason}</p>
                             <button onClick={() => alert('Reported')} className="ml-auto flex items-center gap-1 bg-red-900/30 text-red-400 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-900/50"><ShieldAlert size={12} /> Report</button>
                         </div>
 
-                        {/* 2. Interest Editor (The Mini Lobby part) */}
                         <div className="bg-[#1a1a1a] rounded-xl p-3 border border-zinc-800">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-xs font-bold text-zinc-400 flex items-center gap-1"><Zap size={12} className="text-green-500" /> Interests (ON)</span>
@@ -414,7 +402,6 @@ export default function SmartMatchPage() {
                             </div>
                         </div>
 
-                        {/* 3. Gender Filter Visual */}
                         <div className="flex justify-between items-center px-3 py-3 bg-[#1a1a1a] rounded-xl border border-zinc-800 opacity-60">
                             <div className="flex items-center gap-2">
                                 <Crown size={16} className="text-[#FF6B91]" />
@@ -423,7 +410,6 @@ export default function SmartMatchPage() {
                             <span className="text-xs text-[#FF6B91] font-bold">Women Only</span>
                         </div>
 
-                        {/* 4. BIG START BUTTON */}
                         <button onClick={startMatch} className="w-full py-4 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white font-bold text-lg rounded-xl shadow-lg hover:scale-[1.01] flex items-center justify-center gap-2 transition-transform">
                             <MessageCircle fill="currentColor" size={20} /> START
                         </button>

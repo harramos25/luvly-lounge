@@ -52,9 +52,12 @@ export default function ChatRoom() {
             if (msgs) {
                 setMessages(msgs);
                 const lastMsg = msgs[msgs.length - 1];
-                if (lastMsg && lastMsg.content.startsWith("[SYSTEM]: SKIP")) {
-                    setIsSkipped(true);
-                    setSkipReason(lastMsg.sender_id === user.id ? "You have skipped this chat." : "Your match skipped.");
+                if (lastMsg && lastMsg.content.includes("[SYSTEM]")) {
+                    // Basic check to see if the last message was a skip system message
+                    if (lastMsg.content.includes("SKIP")) {
+                        setIsSkipped(true);
+                        setSkipReason(lastMsg.sender_id === user.id ? "You have skipped this chat." : "Your match skipped.");
+                    }
                 }
             }
 
@@ -65,7 +68,7 @@ export default function ChatRoom() {
                     { event: "INSERT", schema: "public", table: "direct_messages", filter: `conversation_id=eq.${id}` },
                     (payload) => {
                         setMessages((prev) => [...prev, payload.new]);
-                        if (payload.new.content.startsWith("[SYSTEM]: SKIP")) {
+                        if (payload.new.content.includes("[SYSTEM]") && payload.new.content.includes("SKIP")) {
                             setIsSkipped(true);
                             setSkipReason(payload.new.sender_id === user.id ? "You have skipped this chat." : "Your match skipped.");
                         }
@@ -155,11 +158,11 @@ export default function ChatRoom() {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
                 {messages.map((msg) => {
-                    if (msg.content === "[SYSTEM]: SKIP") return null;
+                    if (msg.content.includes("SKIP") && msg.content.includes("[SYSTEM]")) return null;
 
-                    // --- SYSTEM PILL FIX (Friend Chat) ---
-                    if (msg.content.startsWith("[SYSTEM]:")) {
-                        const displayText = msg.content.replace("[SYSTEM]: ", "");
+                    // --- FIX: CHECK FOR [SYSTEM] WITHOUT COLON ---
+                    if (msg.content.startsWith("[SYSTEM]")) {
+                        const displayText = msg.content.replace(/\[SYSTEM\]:? /, ""); // Removes [SYSTEM] or [SYSTEM]:
                         return (
                             <div key={msg.id} className="text-center my-6 animate-in fade-in zoom-in">
                                 <div className="inline-flex items-center gap-2 text-[#A67CFF] font-medium text-sm bg-[#A67CFF]/10 px-4 py-1 rounded-full border border-[#A67CFF]/20 shadow-sm">
@@ -205,9 +208,6 @@ export default function ChatRoom() {
                         <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px]">
                             <button className="p-2 text-zinc-500 hover:text-white transition-colors"><ImageIcon size={20} /></button>
                             <form onSubmit={handleSendMessage} className="flex-1 flex">
-
-                                {/* --- ACCESSIBILITY FIX (Friend Chat Input) --- */}
-                                {/* Fixes warning from image_1139ec.png */}
                                 <input
                                     id="friend-message-input"
                                     name="friend-message"
@@ -217,7 +217,6 @@ export default function ChatRoom() {
                                     className="w-full bg-transparent text-white px-2 outline-none text-sm placeholder-zinc-500"
                                     autoComplete="off"
                                 />
-
                                 <button type="submit" disabled={!newMessage.trim()} className="p-2 text-zinc-500 hover:text-[#A67CFF] disabled:opacity-50 transition-colors">
                                     <Send size={20} />
                                 </button>
