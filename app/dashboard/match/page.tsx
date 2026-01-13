@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import {
     Zap, Loader2, X, Plus, MessageCircle,
-    Send, ShieldAlert, Sparkles, Smile, Image as ImageIcon, HeartOff, Menu, MoreVertical, Crown
+    Send, ShieldAlert, Sparkles, Smile, Image as ImageIcon, HeartOff, Menu, MoreVertical, Crown, ToggleRight
 } from "lucide-react";
 import { useSidebar } from "../sidebar-context";
 
@@ -13,9 +13,6 @@ export default function SmartMatchPage() {
     const supabase = createClient();
     const router = useRouter();
     const { toggle } = useSidebar();
-
-    // DEBUG LOG
-    console.log("🔹 SMART MATCH HYBRID UI LOADED v4 🔹");
 
     // VIEW STATES
     const [view, setView] = useState<"LOBBY" | "CHAT">("LOBBY");
@@ -68,7 +65,21 @@ export default function SmartMatchPage() {
         return () => { if (searchIntervalRef.current) clearInterval(searchIntervalRef.current); };
     }, []);
 
-    // --- LOGIC: INTERESTS ---
+    // --- ACTIONS ---
+    const handleResume = () => {
+        if (resumeId) {
+            loadChat(resumeId, userId);
+            setShowResumeModal(false);
+        }
+    };
+
+    const handleStartNew = () => {
+        localStorage.removeItem("active_match_id");
+        setResumeId(null);
+        setShowResumeModal(false);
+        setView("LOBBY");
+    };
+
     const handleAddInterest = async () => {
         const tag = inputValue.trim().toLowerCase();
         if (!tag) return;
@@ -87,17 +98,16 @@ export default function SmartMatchPage() {
         await supabase.from("profiles").update({ interests: newInterests }).eq("id", userId);
     };
 
-    // --- LOGIC: MATCHMAKING ---
     const startMatch = async () => {
         if (myInterests.length === 0) return alert("Add an interest first!");
 
         // RESET STATE FOR NEW SEARCH
         setFinding(true);
         setIsSkipped(false);
-        setMessages([]); // Clear old messages immediately
+        setMessages([]);
         setPartner(null);
         setActiveConvId(null);
-        setView("CHAT"); // Ensure we are in the "Chat" layout structure
+        setView("CHAT");
         setStatusText("Entering the lounge...");
 
         await supabase.from("profiles").update({ status: 'searching' }).eq("id", userId);
@@ -109,13 +119,11 @@ export default function SmartMatchPage() {
             attempts++;
             setStatusText(attempts % 2 === 0 ? "Scanning for vibes..." : "Looking for a partner...");
 
-            // 1. SEEKER
             const { data: matchData } = await supabase.rpc('search_for_match', { my_id: userId, my_interests: myInterests });
             if (matchData && matchData.length > 0) {
                 clearInterval(interval);
                 const partner = matchData[0];
 
-                // Connect
                 const { data: existingRoom } = await supabase.rpc('find_conversation_with_user', { other_user_id: partner.partner_id });
                 let convId = existingRoom;
                 if (!convId) {
@@ -127,7 +135,6 @@ export default function SmartMatchPage() {
                     ]);
                 }
 
-                // System Msg
                 let sysMsg = partner.shared_interest
                     ? `✨ You both like **${partner.shared_interest}**`
                     : `You are now chatting with **${partner.partner_name}**. Say hi!`;
@@ -139,7 +146,6 @@ export default function SmartMatchPage() {
                 loadChat(convId, userId);
             }
 
-            // 2. TARGET
             const { data: myProfile } = await supabase.from("profiles").select("status").eq("id", userId).single();
             if (myProfile?.status === 'busy') {
                 const { data: recentChat } = await supabase.from("conversation_participants")
@@ -155,7 +161,6 @@ export default function SmartMatchPage() {
                 setFinding(false);
                 await supabase.from("profiles").update({ status: 'online' }).eq("id", userId);
                 alert("No match found. Try again.");
-                // If failed, we stay in CHAT view but skipped state effectively
                 setIsSkipped(true);
                 setSkipReason("No partner found.");
             }
@@ -167,13 +172,12 @@ export default function SmartMatchPage() {
         if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
         setFinding(false);
         await supabase.from("profiles").update({ status: 'online' }).eq("id", userId);
-        // Go back to skipped state controls if we were there
         if (view === 'CHAT') setIsSkipped(true);
     };
 
-    // --- LOGIC: ACTIVE CHAT ---
     const loadChat = async (convId: string, currentUserId: string) => {
         setActiveConvId(convId);
+        setView("CHAT");
         setFinding(false);
         setIsSkipped(false);
         localStorage.setItem("active_match_id", convId);
@@ -229,20 +233,6 @@ export default function SmartMatchPage() {
         localStorage.removeItem("active_match_id");
     };
 
-    const handleResume = () => {
-        if (resumeId) {
-            loadChat(resumeId, userId);
-            setShowResumeModal(false);
-        }
-    };
-
-    const handleStartNew = () => {
-        localStorage.removeItem("active_match_id");
-        setResumeId(null);
-        setShowResumeModal(false);
-        setView("LOBBY"); // If they click Start New from Modal, go to Lobby.
-    };
-
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
@@ -250,6 +240,7 @@ export default function SmartMatchPage() {
 
     // ================= RENDER =================
 
+    // 1. RESUME MODAL
     if (showResumeModal) {
         return (
             <div className="h-full flex items-center justify-center p-4 bg-[#0a0a0a]">
@@ -265,7 +256,7 @@ export default function SmartMatchPage() {
         );
     }
 
-    // --- INITIAL LOBBY VIEW (Only seen on first load) ---
+    // 2. MAIN DASHBOARD (Lobby)
     if (view === "LOBBY") {
         return (
             <div className="h-full bg-[#0a0a0a] text-white flex flex-col items-center relative font-sans overflow-hidden">
@@ -277,8 +268,7 @@ export default function SmartMatchPage() {
                         <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-[#FF6B91] to-[#A67CFF] rounded-3xl flex items-center justify-center shadow-lg shadow-purple-500/20">
                             <MessageCircle size={40} className="text-white" />
                         </div>
-                        {/* UPDATED TITLE FOR VISUAL VERIFICATION */}
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Luvly Lounge v4</h1>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Luvly Lounge</h1>
                     </div>
                     <div className="w-full space-y-4">
                         <div className="bg-[#111] border border-zinc-800 rounded-2xl p-3 flex flex-wrap gap-2 min-h-[60px]">
@@ -286,7 +276,7 @@ export default function SmartMatchPage() {
                                 <span key={tag} className="px-3 py-1.5 bg-zinc-800 rounded-full text-sm text-white flex items-center gap-2 border border-zinc-700">{tag} <button onClick={() => handleRemoveInterest(tag)}><X size={14} /></button></span>
                             ))}
                             {myInterests.length < 3 && (
-                                <div className="flex-1 min-w-[120px] flex items-center gap-2 px-2"><Plus size={16} className="text-zinc-500" /><input id="interest-lobby" name="interest" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddInterest()} placeholder="Add interest..." className="bg-transparent outline-none text-sm text-white w-full" autoComplete="off" /></div>
+                                <div className="flex-1 min-w-[120px] flex items-center gap-2 px-2"><Plus size={16} className="text-zinc-500" /><input id="lobby-interest" name="interest" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddInterest()} placeholder="Add interest..." className="bg-transparent outline-none text-sm text-white w-full" autoComplete="off" /></div>
                             )}
                         </div>
                     </div>
@@ -304,7 +294,7 @@ export default function SmartMatchPage() {
         );
     }
 
-    // --- CHAT VIEW (Used for both Active Chat AND Skipped State) ---
+    // 3. CHAT VIEW (Contains Active Chat + "Mini Lobby" when skipped)
     return (
         <div className="absolute inset-0 flex flex-col bg-[#18181b] text-white font-sans overflow-hidden">
 
@@ -328,9 +318,9 @@ export default function SmartMatchPage() {
                 <button className="text-zinc-400"><MoreVertical size={24} /></button>
             </div>
 
-            {/* MESSAGES */}
+            {/* MESSAGES AREA */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
-                {/* If finding, show big loader in middle of chat area */}
+                {/* Loading Spinner in middle if searching */}
                 {finding && (
                     <div className="h-full flex flex-col items-center justify-center space-y-4 text-zinc-500">
                         <Loader2 size={48} className="animate-spin text-[#FF6B91]" />
@@ -339,8 +329,11 @@ export default function SmartMatchPage() {
                     </div>
                 )}
 
+                {/* Chat History */}
                 {!finding && messages.map((msg) => {
                     if (msg.content === "[SYSTEM]: SKIP") return null;
+
+                    // SYSTEM PILL FIX: This renders the system message as a Pill, NOT a bubble.
                     if (msg.content.startsWith("[SYSTEM]:")) {
                         return (
                             <div key={msg.id} className="text-center my-6 animate-in fade-in zoom-in">
@@ -363,10 +356,11 @@ export default function SmartMatchPage() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* FOOTER - DYNAMIC */}
+            {/* FOOTER - DYNAMIC STATE */}
             <div className="flex-none z-50 bg-[#111]">
+
+                {/* STATE A: ACTIVE CHAT (Input Bar) */}
                 {!isSkipped && !finding ? (
-                    // ACTIVE CHAT FOOTER
                     <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
                         <button onClick={handleSkip} className={`h-12 px-5 font-bold text-sm rounded-xl transition-all shadow-lg min-w-[80px] ${skipConfirm ? "bg-red-600 animate-pulse text-white" : "bg-[#ea580c] text-white"}`}>
                             {skipConfirm ? "CONFIRM" : "SKIP"}
@@ -379,22 +373,25 @@ export default function SmartMatchPage() {
                             </form>
                         </div>
                     </div>
+
                 ) : isSkipped ? (
-                    // SKIPPED STATE - THE "MINI LOBBY" FOOTER
+
+                    // STATE B: SKIPPED "MINI LOBBY" (Matches ChitChat UI)
                     <div className="p-4 border-t border-red-900/30 flex flex-col gap-4 animate-in slide-in-from-bottom-10 pb-safe bg-[#0d0d0d]">
 
-                        {/* Status Line */}
+                        {/* 1. Status Message */}
                         <div className="flex items-center gap-3">
                             <HeartOff className="text-[#FF6B91]" size={20} />
                             <p className="font-bold text-white text-md">{skipReason}</p>
-                            <button className="ml-auto flex items-center gap-1 bg-red-900/30 text-red-400 px-3 py-1 rounded-lg text-xs font-bold"><ShieldAlert size={12} /> Report</button>
+                            <button onClick={() => alert('Reported')} className="ml-auto flex items-center gap-1 bg-red-900/30 text-red-400 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-900/50"><ShieldAlert size={12} /> Report</button>
                         </div>
 
-                        {/* Interest Editor (Inline) */}
+                        {/* 2. Interest Editor (The Mini Lobby part) */}
                         <div className="bg-[#1a1a1a] rounded-xl p-3 border border-zinc-800">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-xs font-bold text-zinc-400 flex items-center gap-1"><Zap size={12} className="text-green-500" /> Interests (ON)</span>
                                 <span className="text-[10px] text-zinc-500">{myInterests.length}/3</span>
+                                <ToggleRight className="text-[#FF6B91] w-8 h-8" />
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {myInterests.map(tag => (
@@ -417,18 +414,18 @@ export default function SmartMatchPage() {
                             </div>
                         </div>
 
-                        {/* Gender Filter (Visual) */}
-                        <div className="flex justify-between items-center px-2 py-2 bg-[#1a1a1a] rounded-xl border border-zinc-800 opacity-60">
+                        {/* 3. Gender Filter Visual */}
+                        <div className="flex justify-between items-center px-3 py-3 bg-[#1a1a1a] rounded-xl border border-zinc-800 opacity-60">
                             <div className="flex items-center gap-2">
-                                <Crown size={14} className="text-[#FF6B91]" />
+                                <Crown size={16} className="text-[#FF6B91]" />
                                 <span className="text-xs text-zinc-400 font-bold">Gender Filter</span>
                             </div>
-                            <span className="text-xs text-[#FF6B91]">Women Only</span>
+                            <span className="text-xs text-[#FF6B91] font-bold">Women Only</span>
                         </div>
 
-                        {/* BIG START BUTTON */}
-                        <button onClick={startMatch} className="w-full py-3 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white font-bold text-md rounded-xl shadow-lg hover:scale-[1.01] flex items-center justify-center gap-2">
-                            <MessageCircle fill="currentColor" size={18} /> START
+                        {/* 4. BIG START BUTTON */}
+                        <button onClick={startMatch} className="w-full py-4 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white font-bold text-lg rounded-xl shadow-lg hover:scale-[1.01] flex items-center justify-center gap-2 transition-transform">
+                            <MessageCircle fill="currentColor" size={20} /> START
                         </button>
                     </div>
                 ) : null}
