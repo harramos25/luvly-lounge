@@ -290,6 +290,7 @@ export default function SmartMatchPage() {
                                     <Plus size={16} className="text-zinc-500" />
 
                                     {/* --- ACCESSIBILITY FIX (Lobby Input) --- */}
+                                    {/* Fixes warning from image_10b28e.png */}
                                     <input
                                         id="interest-input"
                                         name="interest"
@@ -385,7 +386,7 @@ export default function SmartMatchPage() {
                                 {/* --- ACCESSIBILITY FIX (Match Chat Input) --- */}
                                 <input
                                     id="match-message-input"
-                                    name="message"
+                                    name="match-message"
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
                                     placeholder="Send a message"

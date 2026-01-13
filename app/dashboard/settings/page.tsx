@@ -2,177 +2,161 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Camera, Save } from "lucide-react";
+import { Camera, Save, AlertTriangle, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
-    const [userId, setUserId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [userId, setUserId] = useState("");
+
+    // Form State
     const [fullName, setFullName] = useState("");
     const [bio, setBio] = useState("");
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [uploading, setUploading] = useState(false);
 
     const supabase = createClient();
+    const router = useRouter();
 
     useEffect(() => {
-        const getProfile = async () => {
+        const loadProfile = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                setUserId(user.id);
-                const { data } = await supabase
-                    .from("profiles")
-                    .select("*")
-                    .eq("id", user.id)
-                    .single();
+            if (!user) return;
+            setUserId(user.id);
 
-                if (data) {
-                    setFullName(data.full_name || "");
-                    setBio(data.bio || "");
-                    setAvatarUrl(data.avatar_url);
-                }
+            const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+            if (data) {
+                setFullName(data.full_name || "");
+                setBio(data.bio || "");
+                setAvatarUrl(data.avatar_url);
             }
         };
-        getProfile();
+        loadProfile();
     }, []);
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
         const file = e.target.files[0];
-
-        // 1. Enforce 2MB Limit Strict Check
-        if (file.size > 2 * 1024 * 1024) {
-            alert("File is too big! Please upload a file under 2MB. \n\nTip: Use a tool like TinyPNG.com to compress your image.");
-            e.target.value = ""; // Clear the input
-            return;
-        }
+        if (file.size > 2 * 1024 * 1024) return alert("File too big (Max 2MB)");
 
         setUploading(true);
         const fileExt = file.name.split('.').pop();
         const filePath = `${userId}/avatar.${fileExt}`;
 
-        if (!userId) return;
-
-        // 2. SEARCH & DESTROY (Clean up old avatars)
-        // List all files in the user's folder
-        const { data: list } = await supabase.storage.from("avatars").list(userId);
-
-        // If files exist, delete them all
-        if (list && list.length > 0) {
-            const filesToRemove = list.map((x) => `${userId}/${x.name}`);
-            await supabase.storage.from("avatars").remove(filesToRemove);
+        const { data: oldFiles } = await supabase.storage.from('avatars').list(userId);
+        if (oldFiles && oldFiles.length > 0) {
+            await supabase.storage.from('avatars').remove(oldFiles.map(x => `${userId}/${x.name}`));
         }
 
-        // 3. Upload the new clean file
-        const { error: uploadError } = await supabase.storage
-            .from('avatars')
-            .upload(filePath, file, { upsert: true });
+        const { error } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
 
-        if (uploadError) {
-            alert("Error uploading avatar");
-        } else {
-            // Get Public URL with timestamp to force refresh
-            const { data: { publicUrl } } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(filePath);
-
-            const urlWithTimestamp = `${publicUrl}?t=${new Date().getTime()}`;
-            setAvatarUrl(urlWithTimestamp);
-
-            // Auto-save the URL to profile
-            await supabase.from("profiles").update({ avatar_url: urlWithTimestamp }).eq("id", userId);
+        if (!error) {
+            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+            const urlWithTime = `${publicUrl}?t=${Date.now()}`;
+            setAvatarUrl(urlWithTime);
+            await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId);
         }
         setUploading(false);
     };
 
     const handleSave = async () => {
         setLoading(true);
-        const { error } = await supabase
-            .from("profiles")
-            .update({
-                full_name: fullName,
-                bio: bio,
-                avatar_url: avatarUrl
-            })
-            .eq("id", userId);
-
-        if (error) alert("Error saving profile");
-        else alert("Profile updated!");
+        await supabase.from("profiles").update({ full_name: fullName, bio: bio }).eq("id", userId);
         setLoading(false);
+        alert("Profile Updated!");
+    };
+
+    const handleDeleteAccount = async () => {
+        const confirmText = prompt("Type 'DELETE' to confirm account deletion. This cannot be undone.");
+        if (confirmText === "DELETE") {
+            setLoading(true);
+            await supabase.from("profiles").delete().eq("id", userId);
+            await supabase.auth.signOut();
+            router.push("/login");
+        }
     };
 
     return (
-        <div className="p-8 text-white max-w-2xl mx-auto">
-            <h1 className="text-3xl font-serif mb-8 bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] bg-clip-text text-transparent">
-                Edit Profile
-            </h1>
+        <div className="min-h-screen bg-black text-white p-4 md:p-8 flex justify-center">
+            <div className="max-w-xl w-full space-y-8">
 
-            <div className="space-y-8">
-                {/* Avatar Section */}
-                <div className="flex items-center gap-6">
-                    <div className="w-24 h-24 rounded-full border-2 border-zinc-700 overflow-hidden bg-zinc-900 relative group">
-                        {avatarUrl ? (
-                            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-500 text-xs">
-                                No Image
-                            </div>
-                        )}
-                        {/* Loading Overlay */}
-                        {uploading && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
-                            </div>
-                        )}
-                    </div>
+                <h1 className="text-3xl font-serif text-[#FF6B91]">Edit Profile</h1>
 
-                    <div>
-                        <label className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg cursor-pointer flex items-center gap-2 transition-colors">
-                            <Camera size={18} />
-                            Change Photo
-                            <input
-                                type="file"
-                                className="hidden"
-                                accept="image/*"
-                                onChange={handleAvatarUpload}
-                                disabled={uploading}
-                            />
+                {/* AVATAR */}
+                <div className="bg-[#111] border border-zinc-800 rounded-2xl p-6 flex items-center gap-6">
+                    <div className="relative group w-24 h-24 flex-shrink-0">
+                        <div className="w-full h-full rounded-full overflow-hidden border-2 border-zinc-700 bg-zinc-900">
+                            {avatarUrl ? (
+                                <img src={avatarUrl} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full bg-zinc-800" />
+                            )}
+                        </div>
+                        <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 cursor-pointer rounded-full transition-opacity">
+                            <Camera className="text-white" />
+                            <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                         </label>
-                        <p className="text-xs text-zinc-500 mt-2">Max 2MB. JPG, PNG, GIF.</p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold">Profile Photo</h3>
+                        <p className="text-xs text-zinc-500 mt-1">Click the image to upload. Max 2MB.</p>
+                        {uploading && <p className="text-xs text-[#FF6B91] mt-2 animate-pulse">Uploading...</p>}
                     </div>
                 </div>
 
-                {/* Input Fields */}
+                {/* DETAILS */}
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Full Name</label>
+                        <label htmlFor="full-name" className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Display Name</label>
                         <input
+                            id="full-name"
+                            name="fullName"
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
-                            className="w-full bg-[#111] border border-zinc-800 rounded-xl p-3 text-white focus:border-[#FF6B91] outline-none transition-colors"
-                            placeholder="Your display name"
+                            className="w-full bg-[#111] border border-zinc-800 rounded-xl p-4 text-white focus:border-[#FF6B91] outline-none"
                         />
                     </div>
-
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Bio</label>
+                        <label htmlFor="bio" className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Bio / Status</label>
+                        {/* ACCESSIBILITY FIX: Added ID and Name */}
                         <textarea
+                            id="bio"
+                            name="bio"
                             value={bio}
                             onChange={(e) => setBio(e.target.value)}
-                            rows={4}
-                            className="w-full bg-[#111] border border-zinc-800 rounded-xl p-3 text-white focus:border-[#FF6B91] outline-none transition-colors resize-none"
-                            placeholder="Tell us about yourself..."
+                            className="w-full bg-[#111] border border-zinc-800 rounded-xl p-4 text-white focus:border-[#FF6B91] outline-none h-32 resize-none"
+                            placeholder="Tell the world who you are..."
                         />
                     </div>
                 </div>
 
                 <button
                     onClick={handleSave}
-                    disabled={loading || uploading}
-                    className="bg-[#FF6B91] hover:bg-[#ff5580] text-black font-bold py-3 px-8 rounded-xl flex items-center gap-2 transition-all disabled:opacity-50"
+                    disabled={loading}
+                    className="bg-white text-black font-bold py-3 px-6 rounded-xl flex items-center gap-2 hover:bg-zinc-200 transition-colors"
                 >
-                    <Save size={18} />
-                    {loading ? "Saving..." : "Save Changes"}
+                    <Save size={18} /> {loading ? "Saving..." : "Save Changes"}
                 </button>
+
+                {/* --- DANGER ZONE --- */}
+                <div className="mt-12 pt-12 border-t border-zinc-900">
+                    <h3 className="text-red-500 font-bold mb-4 flex items-center gap-2">
+                        <AlertTriangle size={18} /> Danger Zone
+                    </h3>
+                    <div className="bg-red-900/10 border border-red-900/30 rounded-2xl p-6 flex items-center justify-between">
+                        <div>
+                            <p className="font-bold text-white text-sm">Delete Account</p>
+                            <p className="text-xs text-zinc-500 mt-1">Once you delete your account, there is no going back.</p>
+                        </div>
+                        <button
+                            onClick={handleDeleteAccount}
+                            className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
+                        >
+                            <Trash2 size={14} /> Delete
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
     );

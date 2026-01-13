@@ -207,6 +207,7 @@ export default function ChatRoom() {
                             <form onSubmit={handleSendMessage} className="flex-1 flex">
 
                                 {/* --- ACCESSIBILITY FIX (Friend Chat Input) --- */}
+                                {/* Fixes warning from image_1139ec.png */}
                                 <input
                                     id="friend-message-input"
                                     name="friend-message"
