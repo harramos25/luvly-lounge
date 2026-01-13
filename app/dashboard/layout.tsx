@@ -37,6 +37,7 @@ export default function DashboardLayout({
     const supabase = createClient();
     const router = useRouter();
     const pathname = usePathname();
+    const isChatRoom = pathname?.includes("/dashboard/chats/") && pathname.split("/").length > 3;
 
     useEffect(() => {
         // ... (Keep existing useEffect exactly as is) ...
@@ -159,14 +160,16 @@ export default function DashboardLayout({
         <div className="flex h-dvh md:h-screen flex-col md:flex-row bg-yankees-blue text-white font-sans overflow-hidden">
 
             {/* --- MOBILE HEADER --- */}
-            <div className="md:hidden h-16 border-b border-white/10 bg-yankees-blue flex items-center justify-between px-4 z-40 shrink-0">
-                <h1 className="font-serif text-xl bg-gradient-to-r from-pictorial-carmine to-razzmatazz bg-clip-text text-transparent">
-                    Luvly Lounge.
-                </h1>
-                <button onClick={() => setMobileMenuOpen(true)} className="p-2 text-queen-pink/70 hover:text-white">
-                    <Menu size={24} />
-                </button>
-            </div>
+            {!isChatRoom && (
+                <div className="md:hidden h-16 border-b border-white/10 bg-yankees-blue flex items-center justify-between px-4 z-40 shrink-0">
+                    <h1 className="font-serif text-xl bg-gradient-to-r from-pictorial-carmine to-razzmatazz bg-clip-text text-transparent">
+                        Luvly Lounge.
+                    </h1>
+                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 text-queen-pink/70 hover:text-white">
+                        <Menu size={24} />
+                    </button>
+                </div>
+            )}
 
             {/* --- MOBILE SIDEBAR OVERLAY --- */}
             {mobileMenuOpen && (
