@@ -105,8 +105,12 @@ export default function SmartMatchPage() {
 
     const startMatch = async () => {
         if (myInterests.length === 0) return alert("Add an interest first!");
+
+        console.log("🚀 STARTING MATCH...");
         setFinding(true);
         setStatusText("Entering the lounge...");
+
+        // Mark myself as searching
         await supabase.from("profiles").update({ status: 'searching' }).eq("id", userId);
 
         let attempts = 0;
@@ -114,18 +118,29 @@ export default function SmartMatchPage() {
 
         const interval = setInterval(async () => {
             attempts++;
+            console.log(`🔎 Attempt ${attempts}: Scanning...`);
             setStatusText(attempts % 2 === 0 ? "Scanning for vibes..." : "Looking for a partner...");
 
-            // 1. SEEKER
-            const { data: matchData } = await supabase.rpc('search_for_match', { my_id: userId, my_interests: myInterests });
+            // 1. AM I THE SEEKER? (Can I find someone?)
+            const { data: matchData, error } = await supabase.rpc('search_for_match', {
+                my_id: userId,
+                my_interests: myInterests
+            });
+
+            if (error) console.error("❌ RPC Error:", error);
+            if (matchData) console.log("👀 Match Data:", matchData);
+
             if (matchData && matchData.length > 0) {
+                console.log("✅ PARTNER FOUND!", matchData[0]);
                 clearInterval(interval);
                 const partner = matchData[0];
 
                 // Find/Create Room
                 const { data: existingRoom } = await supabase.rpc('find_conversation_with_user', { other_user_id: partner.partner_id });
                 let convId = existingRoom;
+
                 if (!convId) {
+                    console.log("🔨 Creating new room...");
                     const { data: newRoom } = await supabase.from("conversations").insert({}).select().single();
                     convId = newRoom.id;
                     await supabase.from("conversation_participants").insert([
@@ -146,13 +161,17 @@ export default function SmartMatchPage() {
                 loadChat(convId, userId);
             }
 
-            // 2. TARGET
+            // 2. AM I THE TARGET? (Did someone find me?)
             const { data: myProfile } = await supabase.from("profiles").select("status").eq("id", userId).single();
+            // console.log("👤 My Status:", myProfile?.status);
+
             if (myProfile?.status === 'busy') {
+                console.log("🔒 I WAS MATCHED! (Status changed to busy)");
                 const { data: recentChat } = await supabase.from("conversation_participants")
                     .select("conversation_id, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).single();
 
                 if (recentChat && (Date.now() - new Date(recentChat.created_at).getTime() < 60000)) {
+                    console.log("🚀 Joining room:", recentChat.conversation_id);
                     clearInterval(interval);
                     loadChat(recentChat.conversation_id, userId);
                 }
