@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import {
-    Zap, Loader2, X, Plus, Instagram, Twitter, Facebook, MessageCircle,
+    Zap, Loader2, X, Plus, MessageCircle,
     Send, ShieldAlert, Sparkles, Smile, Image as ImageIcon, HeartOff, Menu, MoreVertical
 } from "lucide-react";
 import { useSidebar } from "../sidebar-context";
@@ -14,17 +14,19 @@ export default function SmartMatchPage() {
     const router = useRouter();
     const { toggle } = useSidebar();
 
-    // --- STATES ---
+    // --- VIEW STATES ---
     const [view, setView] = useState<"LOBBY" | "CHAT">("LOBBY");
-    const [userId, setUserId] = useState("");
+    const [showResumeModal, setShowResumeModal] = useState(false);
+    const [resumeId, setResumeId] = useState<string | null>(null);
 
-    // LOBBY STATE
+    // --- LOBBY DATA ---
+    const [userId, setUserId] = useState("");
     const [myInterests, setMyInterests] = useState<string[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [finding, setFinding] = useState(false);
     const [statusText, setStatusText] = useState("");
 
-    // CHAT STATE
+    // --- CHAT DATA ---
     const [activeConvId, setActiveConvId] = useState<string | null>(null);
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState("");
@@ -36,31 +38,27 @@ export default function SmartMatchPage() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const searchIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // 1. INITIAL LOAD & RESUME CHECK
+    // 1. INITIAL LOAD
     useEffect(() => {
         const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
             setUserId(user.id);
 
-            // A. Load Interests
-            const { data: profile } = await supabase.from("profiles").select("interests, status").eq("id", user.id).single();
+            // Load Interests
+            const { data: profile } = await supabase.from("profiles").select("interests").eq("id", user.id).single();
             if (profile?.interests) setMyInterests(profile.interests);
 
-            // B. RESUME CHECK: Is there an active match from before?
-            // We look for a conversation updated recently (last 5 mins) where I didn't skip yet.
-            // (This is a simplified check. For robust resume, we'd check a 'status' flag on the participant row).
+            // CHECK FOR ACTIVE MATCH TO RESUME
             const storedConvId = localStorage.getItem("active_match_id");
-
             if (storedConvId) {
-                // Verify if it's still valid
+                // Verify if it still exists
                 const { data: conv } = await supabase.from("conversations").select("id").eq("id", storedConvId).single();
                 if (conv) {
-                    if (confirm("Resume your active chat?")) {
-                        loadChat(storedConvId, user.id);
-                    } else {
-                        localStorage.removeItem("active_match_id"); // User chose to start new
-                    }
+                    setResumeId(storedConvId);
+                    setShowResumeModal(true); // Show the "Pop-up"
+                } else {
+                    localStorage.removeItem("active_match_id");
                 }
             }
         };
@@ -71,8 +69,21 @@ export default function SmartMatchPage() {
         };
     }, []);
 
+    // --- ACTIONS ---
 
-    // --- VIEW 1: LOBBY LOGIC ---
+    const handleResume = () => {
+        if (resumeId) {
+            loadChat(resumeId, userId);
+            setShowResumeModal(false);
+        }
+    };
+
+    const handleStartNew = () => {
+        localStorage.removeItem("active_match_id");
+        setResumeId(null);
+        setShowResumeModal(false);
+        setView("LOBBY");
+    };
 
     const handleAddInterest = async () => {
         const tag = inputValue.trim().toLowerCase();
@@ -94,7 +105,6 @@ export default function SmartMatchPage() {
 
     const startMatch = async () => {
         if (myInterests.length === 0) return alert("Add an interest first!");
-
         setFinding(true);
         setStatusText("Entering the lounge...");
         await supabase.from("profiles").update({ status: 'searching' }).eq("id", userId);
@@ -108,12 +118,11 @@ export default function SmartMatchPage() {
 
             // 1. SEEKER
             const { data: matchData } = await supabase.rpc('search_for_match', { my_id: userId, my_interests: myInterests });
-
             if (matchData && matchData.length > 0) {
                 clearInterval(interval);
                 const partner = matchData[0];
 
-                // Create/Find Room
+                // Find/Create Room
                 const { data: existingRoom } = await supabase.rpc('find_conversation_with_user', { other_user_id: partner.partner_id });
                 let convId = existingRoom;
                 if (!convId) {
@@ -125,7 +134,7 @@ export default function SmartMatchPage() {
                     ]);
                 }
 
-                // Send System Msg
+                // System Message
                 let sysMsg = partner.shared_interest
                     ? `✨ You both like **${partner.shared_interest}**`
                     : `You are now chatting with **${partner.partner_name}**. Say hi!`;
@@ -134,7 +143,6 @@ export default function SmartMatchPage() {
                     conversation_id: convId, sender_id: userId, content: `[SYSTEM]: ${sysMsg}`
                 });
 
-                // SWITCH TO CHAT VIEW
                 loadChat(convId, userId);
             }
 
@@ -166,21 +174,18 @@ export default function SmartMatchPage() {
         await supabase.from("profiles").update({ status: 'online' }).eq("id", userId);
     };
 
-
-    // --- VIEW 2: CHAT LOGIC ---
-
+    // --- CHAT LOGIC ---
     const loadChat = async (convId: string, currentUserId: string) => {
         setActiveConvId(convId);
         setView("CHAT");
         setFinding(false);
         setIsSkipped(false);
-        localStorage.setItem("active_match_id", convId); // SAVE FOR RESUME
+        localStorage.setItem("active_match_id", convId);
 
         // Fetch Partner
         const { data: conv } = await supabase.from("conversations")
             .select(`*, conversation_participants(user_id, profiles(full_name, avatar_url))`)
             .eq("id", convId).single();
-
         if (conv) {
             const other = conv.conversation_participants.find((p: any) => p.user_id !== currentUserId);
             if (other) setPartner(other.profiles);
@@ -228,7 +233,7 @@ export default function SmartMatchPage() {
         setIsSkipped(true);
         setSkipReason("You have skipped.");
         setSkipConfirm(false);
-        localStorage.removeItem("active_match_id"); // Clear resume state
+        localStorage.removeItem("active_match_id");
     };
 
     const resetToLobby = () => {
@@ -239,7 +244,6 @@ export default function SmartMatchPage() {
         localStorage.removeItem("active_match_id");
     };
 
-    // --- SCROLL EFFECT ---
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
@@ -247,15 +251,32 @@ export default function SmartMatchPage() {
 
     // ================= RENDER =================
 
+    // 1. RESUME MODAL (Pop-up)
+    if (showResumeModal) {
+        return (
+            <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+                <div className="bg-[#111] border border-zinc-800 p-8 rounded-2xl max-w-sm w-full text-center space-y-6">
+                    <Zap size={48} className="mx-auto text-[#FF6B91]" />
+                    <div>
+                        <h2 className="text-xl font-bold text-white mb-2">Active Match Found</h2>
+                        <p className="text-zinc-400 text-sm">You have an ongoing conversation. Would you like to resume it?</p>
+                    </div>
+                    <div className="flex gap-3">
+                        <button onClick={handleStartNew} className="flex-1 py-3 bg-zinc-800 rounded-xl font-bold text-white text-sm">Start New</button>
+                        <button onClick={handleResume} className="flex-1 py-3 bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] rounded-xl font-bold text-white text-sm">Resume</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // 2. LOBBY VIEW
     if (view === "LOBBY") {
-        // --- RENDER LOBBY ---
         return (
             <div className="min-h-screen bg-[#0a0a0a] text-white p-4 flex flex-col items-center relative overflow-hidden font-sans">
-                {/* HAMBURGER FOR SIDEBAR */}
                 <div className="absolute top-4 left-4 z-50 md:hidden">
                     <button onClick={toggle}><Menu className="text-zinc-400" /></button>
                 </div>
-
                 <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md space-y-8 z-10 pb-24">
                     <div className="text-center space-y-4">
                         <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-[#FF6B91] to-[#A67CFF] rounded-3xl flex items-center justify-center shadow-lg shadow-purple-500/20">
@@ -263,7 +284,6 @@ export default function SmartMatchPage() {
                         </div>
                         <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Luvly Lounge</h1>
                     </div>
-
                     <div className="w-full space-y-3">
                         <div className="flex justify-between items-center px-1">
                             <h2 className="text-sm font-bold text-zinc-300">Your Interests <span className="text-[#FF6B91]">(Max 3)</span></h2>
@@ -286,7 +306,6 @@ export default function SmartMatchPage() {
                         </div>
                     </div>
                 </div>
-
                 <div className="fixed bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent z-20">
                     <div className="max-w-md mx-auto">
                         {!finding ? (
@@ -304,10 +323,9 @@ export default function SmartMatchPage() {
         );
     }
 
-    // --- RENDER CHAT ---
+    // 3. CHAT VIEW
     return (
         <div className="fixed inset-0 flex flex-col h-[100dvh] bg-[#18181b] text-white font-sans overflow-hidden">
-            {/* HEADER */}
             <div className="flex-none h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 z-50">
                 <div className="flex items-center gap-4">
                     <button onClick={toggle}><Menu size={24} className="text-zinc-400" /></button>
@@ -327,9 +345,9 @@ export default function SmartMatchPage() {
                 <button className="text-zinc-400"><MoreVertical size={24} /></button>
             </div>
 
-            {/* MESSAGES */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
                 {messages.map((msg) => {
+                    // BUBBLE FIX: Only render system pill if it's a system message
                     if (msg.content === "[SYSTEM]: SKIP") return null;
                     if (msg.content.startsWith("[SYSTEM]:")) {
                         return (
@@ -353,7 +371,6 @@ export default function SmartMatchPage() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* FOOTER */}
             <div className="flex-none z-50 bg-[#111]">
                 {!isSkipped ? (
                     <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
@@ -376,7 +393,7 @@ export default function SmartMatchPage() {
                         </div>
                         <div className="flex gap-3">
                             <button className="flex items-center gap-2 px-4 py-3 bg-[#27272a] rounded-xl text-zinc-300 font-bold text-sm"><ShieldAlert size={16} /> Report</button>
-                            {/* CHANGE: This button now just resets the view to LOBBY instead of routing */}
+                            {/* RESET TO LOBBY BUTTON */}
                             <button onClick={resetToLobby} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white font-bold text-sm rounded-xl hover:scale-[1.02]">
                                 <Zap size={18} fill="currentColor" /> Find New Match
                             </button>
