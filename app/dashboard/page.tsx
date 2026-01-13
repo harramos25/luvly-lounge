@@ -123,12 +123,42 @@ export default function MatchLobby() {
         await performMatchAttempt(currentUserId);
     };
 
-    const performMatchAttempt = async () => {
-        if (hasRedirected.current) return;
+    const performMatchAttempt = async (overrideId?: string) => {
+        const uid = overrideId || userId;
+        if (!uid || hasRedirected.current) return;
 
-        console.log("Attempting to find match...");
+        // 🔍 CHECK 1: DID SOMEONE FIND ME? (Passive Check)
+        // If my status changed to 'busy' while I was sleeping, someone grabbed me.
+        const { data: myProfile } = await supabase
+            .from("profiles")
+            .select("match_status")
+            .eq("id", uid)
+            .single();
+
+        if (myProfile?.match_status === 'busy') {
+            console.log("Status changed to BUSY! Someone found me. Redirecting...");
+            hasRedirected.current = true;
+            if (searchInterval) clearInterval(searchInterval);
+
+            // Find the room they created for me
+            const { data: parts } = await supabase
+                .from("conversation_participants")
+                .select("conversation_id")
+                .eq("user_id", uid)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .single();
+
+            if (parts) {
+                router.push(`/dashboard/chats/${parts.conversation_id}`);
+            }
+            return;
+        }
+
+        // 🔍 CHECK 2: CAN I FIND SOMEONE? (Active Search)
+        console.log("Attempting to find match for:", uid);
         const { data, error } = await supabase.rpc('find_match', {
-            p_user_id: userId,
+            p_user_id: uid,
             p_interests: myInterests
         });
 
@@ -146,7 +176,7 @@ export default function MatchLobby() {
             // Stop polling
             if (searchInterval) clearInterval(searchInterval);
 
-            await createMatchConversation(match.matched_user_id, match.common_interest);
+            await createMatchConversation(match.matched_user_id, match.common_interest, uid);
         } else {
             console.log("No match yet... waiting.");
         }
