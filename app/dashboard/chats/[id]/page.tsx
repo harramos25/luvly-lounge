@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
-// Import the Sidebar Context Hook
 import { useSidebar } from "../../sidebar-context";
 import {
     Send, ShieldAlert, Menu, MoreVertical,
@@ -12,7 +11,6 @@ import {
 
 export default function ChatRoom() {
     const { id } = useParams();
-    // Use the Sidebar toggle instead of router back
     const { toggle } = useSidebar();
 
     const [messages, setMessages] = useState<any[]>([]);
@@ -20,10 +18,9 @@ export default function ChatRoom() {
     const [partner, setPartner] = useState<any>(null);
     const [userId, setUserId] = useState("");
 
-    // SKIP STATES
     const [isSkipped, setIsSkipped] = useState(false);
     const [skipReason, setSkipReason] = useState("");
-    const [skipConfirm, setSkipConfirm] = useState(false); // Track confirmation step
+    const [skipConfirm, setSkipConfirm] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
@@ -36,7 +33,6 @@ export default function ChatRoom() {
             if (!user) return;
             setUserId(user.id);
 
-            // Fetch Partner
             const { data: conv } = await supabase
                 .from("conversations")
                 .select(`*, conversation_participants(user_id, profiles(full_name, avatar_url))`)
@@ -48,7 +44,6 @@ export default function ChatRoom() {
                 if (other) setPartner(other.profiles);
             }
 
-            // Load Messages
             const { data: msgs } = await supabase
                 .from("direct_messages")
                 .select("*")
@@ -57,7 +52,6 @@ export default function ChatRoom() {
 
             if (msgs) {
                 setMessages(msgs);
-                // Check history for skips
                 const lastMsg = msgs[msgs.length - 1];
                 if (lastMsg && lastMsg.content.startsWith("[SYSTEM]: SKIP")) {
                     setIsSkipped(true);
@@ -69,7 +63,6 @@ export default function ChatRoom() {
                 }
             }
 
-            // REALTIME LISTENER
             const channel = supabase
                 .channel(`chat-${id}`)
                 .on(
@@ -77,8 +70,6 @@ export default function ChatRoom() {
                     { event: "INSERT", schema: "public", table: "direct_messages", filter: `conversation_id=eq.${id}` },
                     (payload) => {
                         setMessages((prev) => [...prev, payload.new]);
-
-                        // Detect realtime skip
                         if (payload.new.content.startsWith("[SYSTEM]: SKIP")) {
                             setIsSkipped(true);
                             if (payload.new.sender_id === user.id) {
@@ -96,19 +87,17 @@ export default function ChatRoom() {
         init();
     }, [id]);
 
-    // Auto-scroll to bottom on new message
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
     // 2. HANDLERS
-
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim() || isSkipped) return;
         const text = newMessage;
         setNewMessage("");
-        setSkipConfirm(false); // Reset skip confirm if typing
+        setSkipConfirm(false);
 
         await supabase.from("direct_messages").insert({
             conversation_id: id,
@@ -118,21 +107,17 @@ export default function ChatRoom() {
         await supabase.from("conversations").update({ updated_at: new Date() }).eq("id", id);
     };
 
-    // INLINE SKIP CONFIRMATION LOGIC
     const handleSkip = async () => {
-        // Step 1: Change button text to Confirm
         if (!skipConfirm) {
             setSkipConfirm(true);
-            // Auto-reset after 3s if no second click
             setTimeout(() => setSkipConfirm(false), 3000);
             return;
         }
 
-        // Step 2: Actually Skip (Second Click)
         await supabase.from("direct_messages").insert({
             conversation_id: id,
             sender_id: userId,
-            content: "[SYSTEM]: SKIP" // Hidden technical message
+            content: "[SYSTEM]: SKIP"
         });
 
         setIsSkipped(true);
@@ -153,14 +138,13 @@ export default function ChatRoom() {
         }
     };
 
-    // 3. RENDER LAYOUT
+    // 3. RENDER
     return (
         <div className="fixed inset-0 flex flex-col h-[100dvh] bg-[#18181b] text-white font-sans overflow-hidden">
 
             {/* HEADER */}
             <div className="flex-none h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 shadow-sm z-50">
                 <div className="flex items-center gap-4">
-                    {/* Hamburger Toggles Sidebar */}
                     <button onClick={toggle}>
                         <Menu size={24} className="text-zinc-400 hover:text-white transition-colors" />
                     </button>
@@ -182,15 +166,12 @@ export default function ChatRoom() {
                 </button>
             </div>
 
-            {/* MESSAGES AREA */}
+            {/* MESSAGES */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
                 {messages.map((msg) => {
-                    // A. IGNORE HIDDEN TECHNICAL MESSAGES
                     if (msg.content === "[SYSTEM]: SKIP") return null;
 
-                    // B. RENDER SYSTEM MESSAGES (The Purple Pill - NOT A BUBBLE)
                     if (msg.content.startsWith("[SYSTEM]:")) {
-                        // Clean up text
                         const displayText = msg.content.replace("[SYSTEM]: ", "");
                         return (
                             <div key={msg.id} className="text-center my-6 animate-in fade-in zoom-in">
@@ -202,7 +183,6 @@ export default function ChatRoom() {
                         );
                     }
 
-                    // C. RENDER USER CHAT BUBBLES (Fallback)
                     const isMe = msg.sender_id === userId;
                     return (
                         <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2`}>
@@ -211,10 +191,9 @@ export default function ChatRoom() {
                                     {partner?.avatar_url && <img src={partner.avatar_url} className="w-full h-full object-cover" />}
                                 </div>
                             )}
-                            {/* The actual bubble style */}
                             <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-[15px] shadow-sm leading-relaxed ${isMe
-                                    ? "bg-[#6366f1] text-white rounded-tr-sm" // Indigo for me
-                                    : "bg-[#27272a] text-zinc-100 rounded-tl-sm" // Dark gray for them
+                                    ? "bg-[#6366f1] text-white rounded-tr-sm"
+                                    : "bg-[#27272a] text-zinc-100 rounded-tl-sm"
                                 }`}>
                                 {msg.content}
                             </div>
@@ -227,21 +206,17 @@ export default function ChatRoom() {
             {/* FOOTER */}
             <div className="flex-none z-50 bg-[#111]">
                 {!isSkipped ? (
-                    // ACTIVE CHAT FOOTER
                     <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
-
-                        {/* SKIP BUTTON WITH INLINE CONFIRM */}
                         <button
                             onClick={handleSkip}
                             className={`h-12 px-5 font-bold text-sm rounded-xl transition-all shadow-lg min-w-[80px] ${skipConfirm
-                                    ? "bg-red-600 hover:bg-red-700 text-white animate-pulse" // Confirm state
-                                    : "bg-[#ea580c] hover:bg-[#c2410c] text-white shadow-orange-900/10" // Normal state
+                                    ? "bg-red-600 hover:bg-red-700 text-white animate-pulse"
+                                    : "bg-[#ea580c] hover:bg-[#c2410c] text-white shadow-orange-900/10"
                                 }`}
                         >
                             {skipConfirm ? "CONFIRM" : "SKIP"}
                         </button>
 
-                        {/* INPUT BAR */}
                         <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px] focus-within:ring-2 focus-within:ring-[#A67CFF]/50 transition-all">
                             <button className="p-2 text-zinc-500 hover:text-white transition-colors"><ImageIcon size={20} /></button>
                             <form onSubmit={handleSendMessage} className="flex-1 flex">
@@ -259,7 +234,6 @@ export default function ChatRoom() {
                         </div>
                     </div>
                 ) : (
-                    // SKIPPED OVERLAY FOOTER
                     <div className="p-6 border-t border-red-900/30 flex flex-col gap-4 animate-in slide-in-from-bottom-10 pb-safe">
                         <div className="flex items-center gap-3">
                             <HeartOff className="text-[#FF6B91]" size={24} />
@@ -279,7 +253,6 @@ export default function ChatRoom() {
                     </div>
                 )}
             </div>
-
         </div>
     );
 }
