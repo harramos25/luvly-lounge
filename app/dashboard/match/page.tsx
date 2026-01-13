@@ -289,7 +289,7 @@ export default function SmartMatchPage() {
                                 <div className="flex-1 min-w-[120px] flex items-center gap-2 px-2">
                                     <Plus size={16} className="text-zinc-500" />
 
-                                    {/* ACCESSIBILITY FIX 1: LOBBY INPUT */}
+                                    {/* --- ACCESSIBILITY FIX (Lobby Input) --- */}
                                     <input
                                         id="interest-input"
                                         name="interest"
@@ -347,6 +347,8 @@ export default function SmartMatchPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
                 {messages.map((msg) => {
                     if (msg.content === "[SYSTEM]: SKIP") return null;
+
+                    // --- SYSTEM PILL FIX (Match Chat) ---
                     if (msg.content.startsWith("[SYSTEM]:")) {
                         return (
                             <div key={msg.id} className="text-center my-6 animate-in fade-in zoom-in">
@@ -356,6 +358,7 @@ export default function SmartMatchPage() {
                             </div>
                         );
                     }
+
                     const isMe = msg.sender_id === userId;
                     return (
                         <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2`}>
@@ -379,7 +382,7 @@ export default function SmartMatchPage() {
                             <button className="p-2 text-zinc-500"><ImageIcon size={20} /></button>
                             <form onSubmit={handleSendMessage} className="flex-1 flex">
 
-                                {/* ACCESSIBILITY FIX 2: MATCH CHAT INPUT */}
+                                {/* --- ACCESSIBILITY FIX (Match Chat Input) --- */}
                                 <input
                                     id="match-message-input"
                                     name="message"

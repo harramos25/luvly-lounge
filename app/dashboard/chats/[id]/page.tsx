@@ -157,6 +157,7 @@ export default function ChatRoom() {
                 {messages.map((msg) => {
                     if (msg.content === "[SYSTEM]: SKIP") return null;
 
+                    // --- SYSTEM PILL FIX (Friend Chat) ---
                     if (msg.content.startsWith("[SYSTEM]:")) {
                         const displayText = msg.content.replace("[SYSTEM]: ", "");
                         return (
@@ -205,10 +206,10 @@ export default function ChatRoom() {
                             <button className="p-2 text-zinc-500 hover:text-white transition-colors"><ImageIcon size={20} /></button>
                             <form onSubmit={handleSendMessage} className="flex-1 flex">
 
-                                {/* ACCESSIBILITY FIX FOR FRIEND CHAT */}
+                                {/* --- ACCESSIBILITY FIX (Friend Chat Input) --- */}
                                 <input
                                     id="friend-message-input"
-                                    name="message"
+                                    name="friend-message"
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
                                     placeholder="Send a message"
