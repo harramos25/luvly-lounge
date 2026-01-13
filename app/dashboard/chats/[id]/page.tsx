@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
-import { useSidebar } from "../../sidebar-context"; // Ensure this path matches your file structure
+// Import the Sidebar Context Hook
+import { useSidebar } from "../../sidebar-context";
 import {
     Send, ShieldAlert, Menu, MoreVertical,
     Sparkles, Smile, Image as ImageIcon, HeartOff, Zap
@@ -11,7 +12,8 @@ import {
 
 export default function ChatRoom() {
     const { id } = useParams();
-    const { toggle } = useSidebar(); // Access Sidebar Toggle
+    // Use the Sidebar toggle instead of router back
+    const { toggle } = useSidebar();
 
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState("");
@@ -116,11 +118,13 @@ export default function ChatRoom() {
         await supabase.from("conversations").update({ updated_at: new Date() }).eq("id", id);
     };
 
+    // INLINE SKIP CONFIRMATION LOGIC
     const handleSkip = async () => {
         // Step 1: Change button text to Confirm
         if (!skipConfirm) {
             setSkipConfirm(true);
-            setTimeout(() => setSkipConfirm(false), 3000); // Auto-reset
+            // Auto-reset after 3s if no second click
+            setTimeout(() => setSkipConfirm(false), 3000);
             return;
         }
 
@@ -128,7 +132,7 @@ export default function ChatRoom() {
         await supabase.from("direct_messages").insert({
             conversation_id: id,
             sender_id: userId,
-            content: "[SYSTEM]: SKIP"
+            content: "[SYSTEM]: SKIP" // Hidden technical message
         });
 
         setIsSkipped(true);
@@ -156,6 +160,7 @@ export default function ChatRoom() {
             {/* HEADER */}
             <div className="flex-none h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 shadow-sm z-50">
                 <div className="flex items-center gap-4">
+                    {/* Hamburger Toggles Sidebar */}
                     <button onClick={toggle}>
                         <Menu size={24} className="text-zinc-400 hover:text-white transition-colors" />
                     </button>
@@ -185,6 +190,7 @@ export default function ChatRoom() {
 
                     // B. RENDER SYSTEM MESSAGES (The Purple Pill - NOT A BUBBLE)
                     if (msg.content.startsWith("[SYSTEM]:")) {
+                        // Clean up text
                         const displayText = msg.content.replace("[SYSTEM]: ", "");
                         return (
                             <div key={msg.id} className="text-center my-6 animate-in fade-in zoom-in">
@@ -205,9 +211,10 @@ export default function ChatRoom() {
                                     {partner?.avatar_url && <img src={partner.avatar_url} className="w-full h-full object-cover" />}
                                 </div>
                             )}
+                            {/* The actual bubble style */}
                             <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-[15px] shadow-sm leading-relaxed ${isMe
-                                    ? "bg-[#6366f1] text-white rounded-tr-sm"
-                                    : "bg-[#27272a] text-zinc-100 rounded-tl-sm"
+                                    ? "bg-[#6366f1] text-white rounded-tr-sm" // Indigo for me
+                                    : "bg-[#27272a] text-zinc-100 rounded-tl-sm" // Dark gray for them
                                 }`}>
                                 {msg.content}
                             </div>
@@ -222,16 +229,19 @@ export default function ChatRoom() {
                 {!isSkipped ? (
                     // ACTIVE CHAT FOOTER
                     <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
+
+                        {/* SKIP BUTTON WITH INLINE CONFIRM */}
                         <button
                             onClick={handleSkip}
                             className={`h-12 px-5 font-bold text-sm rounded-xl transition-all shadow-lg min-w-[80px] ${skipConfirm
-                                    ? "bg-red-600 hover:bg-red-700 text-white animate-pulse"
-                                    : "bg-[#ea580c] hover:bg-[#c2410c] text-white shadow-orange-900/10"
+                                    ? "bg-red-600 hover:bg-red-700 text-white animate-pulse" // Confirm state
+                                    : "bg-[#ea580c] hover:bg-[#c2410c] text-white shadow-orange-900/10" // Normal state
                                 }`}
                         >
                             {skipConfirm ? "CONFIRM" : "SKIP"}
                         </button>
 
+                        {/* INPUT BAR */}
                         <div className="flex-1 bg-[#27272a] rounded-xl flex items-center px-2 min-h-[48px] focus-within:ring-2 focus-within:ring-[#A67CFF]/50 transition-all">
                             <button className="p-2 text-zinc-500 hover:text-white transition-colors"><ImageIcon size={20} /></button>
                             <form onSubmit={handleSendMessage} className="flex-1 flex">
@@ -269,6 +279,7 @@ export default function ChatRoom() {
                     </div>
                 )}
             </div>
+
         </div>
     );
 }
