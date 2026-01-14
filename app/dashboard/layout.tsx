@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Sidebar from "./sidebar";
 import { SidebarProvider, useSidebar } from "./sidebar-context";
 import { Menu } from "lucide-react";
+import Gatekeeper from "@/components/Gatekeeper"; // Import Gatekeeper
 
 // The Global Header (Only for pages that lack their own header)
 function GlobalMobileHeader({ children }: { children: React.ReactNode }) {
@@ -32,27 +33,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     // STRICT RULE: If we are on "/dashboard" OR any "/dashboard/chats/..." page, 
     // we HIDE the global header because those pages have their own custom UI.
-    const isImmersivePage = pathname === "/dashboard" || pathname?.startsWith("/dashboard/chats");
+    // Added trailing slash check just in case.
+    const isImmersivePage = pathname === "/dashboard" || pathname === "/dashboard/" || pathname?.startsWith("/dashboard/chats");
 
     return (
         <SidebarProvider>
-            <div className="flex h-[100dvh] bg-black text-white font-sans overflow-hidden">
-                {/* Desktop/Mobile Sidebar */}
-                <Sidebar />
+            {/* 🔒 GATEKEEPER WRAPPER: Enforces Verify -> Onboarding -> Dashboard flow */}
+            <Gatekeeper>
+                <div className="flex h-[100dvh] bg-black text-white font-sans overflow-hidden">
+                    {/* Desktop/Mobile Sidebar */}
+                    <Sidebar />
 
-                {/* Content Area */}
-                <div className="flex-1 h-full relative w-full">
-                    {isImmersivePage ? (
-                        // Immersive Mode: No global header, page handles everything (Full Height)
-                        <main className="h-full w-full relative overflow-hidden">
-                            {children}
-                        </main>
-                    ) : (
-                        // Standard Mode: Shows global mobile header (e.g. Settings, Profile pages)
-                        <GlobalMobileHeader>{children}</GlobalMobileHeader>
-                    )}
+                    {/* Content Area */}
+                    <div className="flex-1 h-full relative w-full">
+                        {isImmersivePage ? (
+                            // Immersive Mode: No global header, page handles everything (Full Height)
+                            <main className="h-full w-full relative overflow-hidden">
+                                {children}
+                            </main>
+                        ) : (
+                            // Standard Mode: Shows global mobile header (e.g. Settings, Profile pages)
+                            <GlobalMobileHeader>{children}</GlobalMobileHeader>
+                        )}
+                    </div>
                 </div>
-            </div>
+            </Gatekeeper>
         </SidebarProvider>
     );
 }
