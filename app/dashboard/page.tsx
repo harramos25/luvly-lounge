@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import {
     Zap, Loader2, X, Plus, MessageCircle,
-    Send, ShieldAlert, Sparkles, Smile, Image as ImageIcon, HeartOff, Menu, MoreVertical, Crown, ToggleRight, Lock
+    Send, ShieldAlert, Sparkles, Smile, Image as ImageIcon, HeartOff, Menu, MoreVertical, Crown, ToggleRight, Lock, UserPlus, Check, Clock
 } from "lucide-react";
 import { useSidebar } from "./sidebar-context";
 
@@ -32,12 +32,18 @@ export default function DashboardPage() {
     const [newMessage, setNewMessage] = useState("");
     const [partner, setPartner] = useState<any>(null);
     const [partnerFull, setPartnerFull] = useState<any>(null);
+
+    // NEW: Friend Request State
+    const [friendStatus, setFriendStatus] = useState<"none" | "pending" | "friends">("none");
+    const [requestLoading, setRequestLoading] = useState(false);
+
     const [isSkipped, setIsSkipped] = useState(false);
     const [skipReason, setSkipReason] = useState("");
     const [skipConfirm, setSkipConfirm] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const searchIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const matchFoundRef = useRef(false);
 
     // 1. SETUP
     useEffect(() => {
@@ -88,25 +94,62 @@ export default function DashboardPage() {
         await supabase.from("profiles").update({ interests: newInterests }).eq("id", userId);
     };
 
+    // --- PROFILE & FRIEND LOGIC ---
     const openPartnerProfile = async () => {
         if (!partner) return;
         setPartnerFull(partner);
+
+        // Check Friend Status
+        if (partner.id) {
+            const { data } = await supabase.from("friend_requests")
+                .select("status, sender_id")
+                .or(`and(sender_id.eq.${userId},receiver_id.eq.${partner.id}),and(sender_id.eq.${partner.id},receiver_id.eq.${userId})`)
+                .maybeSingle(); // Use maybeSingle to avoid errors if no row
+
+            if (data) {
+                if (data.status === 'accepted') setFriendStatus('friends');
+                else if (data.status === 'pending') setFriendStatus('pending');
+            } else {
+                setFriendStatus('none');
+            }
+        }
         setShowProfileModal(true);
+    };
+
+    const sendFriendRequest = async () => {
+        if (!partnerFull?.id) return;
+        setRequestLoading(true);
+
+        const { error } = await supabase.from("friend_requests").insert({
+            sender_id: userId,
+            receiver_id: partnerFull.id,
+            status: 'pending'
+        });
+
+        if (!error) {
+            setFriendStatus('pending');
+        } else {
+            alert("Could not send request.");
+        }
+        setRequestLoading(false);
     };
 
     const startMatch = async () => {
         if (myInterests.length === 0) return alert("Add an interest first!");
         setFinding(true); setIsSkipped(false); setMessages([]); setPartner(null); setActiveConvId(null); setView("CHAT");
         setStatusText("Entering the lounge...");
+        matchFoundRef.current = false;
         await supabase.from("profiles").update({ status: 'searching' }).eq("id", userId);
 
         let attempts = 0;
         const interval = setInterval(async () => {
+            if (matchFoundRef.current) { clearInterval(interval); return; }
             attempts++;
             setStatusText(attempts % 2 === 0 ? "Scanning for vibes..." : "Looking for a partner...");
 
             const { data: matchData } = await supabase.rpc('search_for_match', { my_id: userId, my_interests: myInterests });
             if (matchData && matchData.length > 0) {
+                matchFoundRef.current = true;
                 clearInterval(interval);
                 const match = matchData[0];
 
@@ -118,20 +161,19 @@ export default function DashboardPage() {
                     await supabase.from("conversation_participants").insert([{ conversation_id: convId, user_id: userId }, { conversation_id: convId, user_id: match.partner_id }]);
                 }
 
-                // MULTIPLE INTERESTS LOGIC
                 let interestsText = match.shared_interest;
                 if (Array.isArray(interestsText)) interestsText = interestsText.join(", ");
-
                 let sysMsg = interestsText ? `✨ You both like **${interestsText}**` : `You are now chatting with **${match.partner_name}**. Say hi!`;
-
                 await supabase.from("direct_messages").insert({ conversation_id: convId, sender_id: userId, content: `[SYSTEM] ${sysMsg}` });
                 loadChat(convId, userId);
             }
 
             const { data: myProfile } = await supabase.from("profiles").select("status").eq("id", userId).single();
-            if (myProfile?.status === 'busy') {
+            if (myProfile?.status === 'busy' && !matchFoundRef.current) {
                 const { data: recentChat } = await supabase.from("conversation_participants").select("conversation_id, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).single();
-                if (recentChat && (Date.now() - new Date(recentChat.created_at).getTime() < 60000)) { clearInterval(interval); loadChat(recentChat.conversation_id, userId); }
+                if (recentChat && (Date.now() - new Date(recentChat.created_at).getTime() < 60000)) {
+                    matchFoundRef.current = true; clearInterval(interval); loadChat(recentChat.conversation_id, userId);
+                }
             }
             if (attempts >= 60) {
                 clearInterval(interval); setFinding(false); await supabase.from("profiles").update({ status: 'online' }).eq("id", userId); alert("No match found."); setIsSkipped(true); setSkipReason("No partner found.");
@@ -163,7 +205,7 @@ export default function DashboardPage() {
             const last = msgs[msgs.length - 1];
             if (last && last.content.includes("[SYSTEM]") && last.content.includes("SKIP")) {
                 setIsSkipped(true);
-                setSkipReason(last.sender_id === currentUserId ? "You have skipped this chat." : "Partner skipped.");
+                setSkipReason(last.sender_id === currentUserId ? "You have skipped." : "Partner skipped.");
             }
         }
 
@@ -186,6 +228,7 @@ export default function DashboardPage() {
     const handleSkip = async () => {
         if (!skipConfirm) { setSkipConfirm(true); setTimeout(() => setSkipConfirm(false), 3000); return; }
         await supabase.from("direct_messages").insert({ conversation_id: activeConvId, sender_id: userId, content: "[SYSTEM]: SKIP" });
+        if (activeConvId) await supabase.from("direct_messages").delete().eq("conversation_id", activeConvId);
         setIsSkipped(true); setSkipReason("You have skipped this chat."); setSkipConfirm(false); localStorage.removeItem("active_match_id");
     };
 
@@ -194,10 +237,31 @@ export default function DashboardPage() {
 
     // ================= RENDER =================
 
-    // --- PROFILE MODAL ---
     const renderProfileModal = () => {
         if (!showProfileModal || !partnerFull) return null;
         const isFree = myTier === 'FREE';
+
+        // Friend Button Logic
+        let FriendButton = (
+            <button onClick={sendFriendRequest} disabled={requestLoading} className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold text-sm transition-colors border border-zinc-700">
+                {requestLoading ? <Loader2 className="animate-spin" size={16} /> : <UserPlus size={16} />}
+                Add Friend
+            </button>
+        );
+
+        if (friendStatus === 'pending') {
+            FriendButton = (
+                <button disabled className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 bg-zinc-800/50 text-zinc-400 rounded-xl font-bold text-sm border border-zinc-800 cursor-not-allowed">
+                    <Clock size={16} /> Requesting...
+                </button>
+            );
+        } else if (friendStatus === 'friends') {
+            FriendButton = (
+                <button disabled className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 bg-green-900/30 text-green-400 rounded-xl font-bold text-sm border border-green-900/50 cursor-default">
+                    <Check size={16} /> Friends
+                </button>
+            );
+        }
 
         return (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setShowProfileModal(false)}>
@@ -208,20 +272,20 @@ export default function DashboardPage() {
                             {partnerFull.avatar_url ? <img src={partnerFull.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-zinc-800" />}
                         </div>
                     </div>
-                    <div className="pt-12 px-6 pb-6 space-y-6">
+                    <div className="pt-12 px-6 pb-6 space-y-4">
                         <div>
                             <h2 className="text-2xl font-bold text-white flex items-center gap-2">{partnerFull.full_name || "Anonymous"} {partnerFull.tier === 'PRO' && <Crown size={20} className="text-yellow-400 fill-yellow-400" />}</h2>
                             <div className="inline-flex items-center gap-2 mt-1 px-3 py-1 bg-zinc-800 rounded-full border border-zinc-700">
-                                <span className="text-xs text-zinc-400 uppercase font-bold">Age</span>
-                                <div className="h-4 w-8 bg-zinc-600 rounded blur-sm opacity-50 relative overflow-hidden"></div>
-                                <Lock size={12} className="text-zinc-500" />
+                                <span className="text-xs text-zinc-400 uppercase font-bold">Age</span><div className="h-4 w-8 bg-zinc-600 rounded blur-sm opacity-50 relative overflow-hidden"></div><Lock size={12} className="text-zinc-500" />
                             </div>
                         </div>
-                        <div className="space-y-2">
+
+                        {/* Friend Button Inserted Here */}
+                        {FriendButton}
+
+                        <div className="space-y-2 mt-4">
                             <h3 className="text-xs font-bold text-zinc-500 uppercase">Identity / Bio</h3>
-                            <div className={`relative p-3 bg-zinc-800/50 rounded-xl border border-zinc-800 text-sm leading-relaxed text-zinc-300 ${isFree ? 'blur-sm select-none' : ''}`}>
-                                {partnerFull.bio || "This user has not written a bio yet."}
-                            </div>
+                            <div className={`relative p-3 bg-zinc-800/50 rounded-xl border border-zinc-800 text-sm leading-relaxed text-zinc-300 ${isFree ? 'blur-sm select-none' : ''}`}>{partnerFull.bio || "No bio yet."}</div>
                             {isFree && (<div className="absolute inset-x-0 top-1/2 flex justify-center pointer-events-none"><span className="bg-black/80 px-3 py-1 rounded-full text-[10px] font-bold text-[#FF6B91] border border-[#FF6B91]/30">UPGRADE TO VIEW</span></div>)}
                         </div>
                         <button onClick={() => router.push('/pricing')} className="w-full py-3 bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] rounded-xl font-bold text-white text-sm shadow-lg">{isFree ? "Unlock Profile Details" : "View Full Profile"}</button>
@@ -248,25 +312,26 @@ export default function DashboardPage() {
 
     // --- LOBBY VIEW ---
     if (view === "LOBBY") {
-        // FIX: Changed absolute inset-0 to h-full flex flex-col relative
         return (
             <div className="h-full flex flex-col relative bg-[#0a0a0a] text-white font-sans overflow-hidden">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-64 bg-[#FF6B91] opacity-10 blur-[100px] pointer-events-none"></div>
                 <div className="absolute top-4 left-4 z-50 md:hidden"><button onClick={toggle} className="p-2 bg-black/50 rounded-full"><Menu className="text-zinc-400" /></button></div>
-                <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto space-y-8 p-4">
+                <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto space-y-8 p-6 z-10">
                     <div className="text-center space-y-4">
-                        <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-[#FF6B91] to-[#A67CFF] rounded-3xl flex items-center justify-center shadow-lg shadow-purple-500/20"><MessageCircle size={40} className="text-white" /></div>
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Luvly Lounge</h1>
+                        <div className="w-24 h-24 mx-auto bg-gradient-to-tr from-[#FF6B91] to-[#A67CFF] rounded-3xl flex items-center justify-center shadow-2xl shadow-purple-500/20 rotate-3 hover:rotate-0 transition-transform duration-500"><MessageCircle size={48} className="text-white fill-white/10" /></div>
+                        <div><h1 className="text-4xl font-bold bg-gradient-to-r from-white via-pink-100 to-zinc-400 bg-clip-text text-transparent">Luvly Lounge</h1><p className="text-zinc-500 mt-2 text-sm">Find your vibe. Chat instantly.</p></div>
                     </div>
                     <div className="w-full space-y-4">
-                        <div className="bg-[#111] border border-zinc-800 rounded-2xl p-3 flex flex-wrap gap-2 min-h-[60px]">
-                            {myInterests.map(tag => (<span key={tag} className="px-3 py-1.5 bg-zinc-800 rounded-full text-sm text-white flex items-center gap-2 border border-zinc-700">{tag} <button onClick={() => handleRemoveInterest(tag)}><X size={14} /></button></span>))}
-                            {myInterests.length < 3 && (<div className="flex-1 min-w-[120px] flex items-center gap-2 px-2"><Plus size={16} className="text-zinc-500" /><input id="lobby-interest" name="interest" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddInterest()} placeholder="Add interest..." className="bg-transparent outline-none text-sm text-white w-full" autoComplete="off" /></div>)}
+                        <div className="bg-[#111] border border-zinc-800/50 rounded-3xl p-4 flex flex-wrap gap-2 min-h-[70px] shadow-inner shadow-black/50">
+                            {myInterests.length === 0 && !inputValue && <p className="text-zinc-600 text-sm w-full text-center my-auto">Add interests to find matches...</p>}
+                            {myInterests.map(tag => (<span key={tag} className="px-3 py-1.5 bg-zinc-800 rounded-full text-sm text-white flex items-center gap-2 border border-zinc-700 animate-in zoom-in">{tag} <button onClick={() => handleRemoveInterest(tag)}><X size={14} /></button></span>))}
+                            {myInterests.length < 3 && (<div className="flex-1 min-w-[120px] flex items-center gap-2 px-2"><Plus size={16} className="text-zinc-500" /><input id="lobby-interest" name="interest" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddInterest()} placeholder="Type & Enter..." className="bg-transparent outline-none text-sm text-white w-full placeholder-zinc-600" autoComplete="off" /></div>)}
                         </div>
                     </div>
                 </div>
-                <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black via-black/90 to-transparent z-20">
+                <div className="absolute bottom-0 left-0 w-full p-6 pb-8 bg-gradient-to-t from-black via-black/95 to-transparent z-20">
                     <div className="max-w-md mx-auto">
-                        {!finding ? (<button onClick={startMatch} className="w-full py-4 bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white font-bold text-lg rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"><Zap fill="currentColor" size={20} /> Start Matching</button>) : (<button onClick={cancelSearch} className="w-full py-4 bg-zinc-800 text-white font-bold text-lg rounded-2xl flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={20} /> Searching...</button>)}
+                        {!finding ? (<button onClick={startMatch} className="w-full py-4 bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] text-white font-bold text-xl rounded-2xl shadow-xl shadow-purple-900/20 flex items-center justify-center gap-3 hover:scale-[1.02] transition-all"><Zap fill="currentColor" size={24} /> Start Matching</button>) : (<button onClick={cancelSearch} className="w-full py-4 bg-zinc-900 text-white font-bold text-lg rounded-2xl flex items-center justify-center gap-3 border border-zinc-800"><Loader2 className="animate-spin" size={24} /> Searching...</button>)}
                     </div>
                 </div>
             </div>
@@ -275,7 +340,6 @@ export default function DashboardPage() {
 
     // --- CHAT + MINI LOBBY VIEW ---
     return (
-        // FIX: Changed absolute inset-0 to h-full flex flex-col relative
         <div className="h-full flex flex-col relative bg-[#18181b] text-white font-sans overflow-hidden">
             {renderProfileModal()}
 
@@ -327,7 +391,6 @@ export default function DashboardPage() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* FOOTER FIX: Z-10 to allow Sidebar to cover it */}
             <div className="flex-none z-10 bg-[#111]">
                 {!isSkipped && !finding ? (
                     <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
