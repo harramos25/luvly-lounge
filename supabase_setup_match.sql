@@ -2,13 +2,18 @@
 -- 3. MATCHMAKING ALGORITHM (RPC)
 -- ==========================================
 
+-- DROP first to ensure we update the security setting
+drop function if exists search_for_match;
+
 create or replace function search_for_match(my_id uuid, my_interests text[])
 returns table (
   partner_id uuid,
   partner_name text,
   partner_avatar text,
   shared_interest text
-) as $$
+) 
+security definer -- 🔴 FIX: Bypass RLS so we can see other users who are searching
+as $$
 declare
   match_record record;
 begin
@@ -33,7 +38,6 @@ begin
       match_record.full_name, 
       match_record.avatar_url, 
       match_record.common_interest;
-      
    end if;
 
 end;
@@ -45,7 +49,9 @@ $$ language plpgsql;
 -- ==========================================
 
 create or replace function find_conversation_with_user(other_user_id uuid)
-returns uuid as $$
+returns uuid 
+security definer -- 🔴 FIX: Ensure we can read conversation participants freely
+as $$
   select c.id
   from conversations c
   join conversation_participants cp1 on cp1.conversation_id = c.id
