@@ -44,7 +44,7 @@ export default function ChatRoom() {
             // LOAD MESSAGES (WITH 24H FILTER)
             let query = supabase.from("direct_messages").select("*").eq("conversation_id", id).order("created_at", { ascending: true });
 
-            if (tier === 'FREE') {
+            if (tier?.toUpperCase() === 'FREE') {
                 // Filter out messages older than 24 hours
                 const oneDayAgo = new Date();
                 oneDayAgo.setHours(oneDayAgo.getHours() - 24);

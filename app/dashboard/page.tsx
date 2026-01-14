@@ -239,7 +239,7 @@ export default function DashboardPage() {
 
     const renderProfileModal = () => {
         if (!showProfileModal || !partnerFull) return null;
-        const isFree = myTier === 'FREE';
+        const isFree = myTier?.toUpperCase() === 'FREE';
 
         // Friend Button Logic
         let FriendButton = (

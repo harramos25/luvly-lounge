@@ -92,7 +92,7 @@ export default function Sidebar() {
                             <h3 className="text-sm font-bold text-white truncate">{profile?.full_name || "Loading..."}</h3>
                             <p className="text-[10px] text-zinc-500 truncate">@{profile?.username || "user"}</p>
                         </div>
-                        {profile?.tier !== 'FREE' && <Crown size={16} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
+                        {profile?.tier?.toUpperCase() !== 'FREE' && <Crown size={16} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
                     </div>
                 </div>
 
