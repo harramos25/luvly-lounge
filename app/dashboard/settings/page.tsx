@@ -1,4 +1,5 @@
 "use client";
+// Age Verification Enabled
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
