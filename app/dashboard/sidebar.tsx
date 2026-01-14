@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import SidebarClient from "./SidebarClient";
+import SidebarClient from "./sidebar-client";
 
 export default async function Sidebar() {
     const supabase = await createClient();
