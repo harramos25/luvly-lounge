@@ -109,8 +109,8 @@ export default function Sidebar() {
                                 href={item.href}
                                 onClick={close}
                                 className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all font-medium text-sm group ${isActive
-                                        ? "bg-gradient-to-r from-[#FF6B91]/10 to-[#A67CFF]/10 text-[#FF6B91]"
-                                        : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
+                                    ? "bg-gradient-to-r from-[#FF6B91]/10 to-[#A67CFF]/10 text-[#FF6B91]"
+                                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
                                     }`}
                             >
                                 <item.icon size={20} className={isActive ? "text-[#FF6B91]" : "text-zinc-500 group-hover:text-white"} />
@@ -137,6 +137,10 @@ export default function Sidebar() {
                         <LogOut size={16} />
                         Log Out
                     </button>
+
+                    <div className="text-[10px] text-zinc-700 text-center pb-2 font-mono">
+                        v2.1 (Gatekeeper Active)
+                    </div>
                 </div>
             </aside>
         </>
