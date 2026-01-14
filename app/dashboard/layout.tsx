@@ -38,7 +38,7 @@ function DashboardContent({
     const supabase = createClient();
     const router = useRouter();
     const pathname = usePathname();
-    const isChatRoom = pathname?.includes("/dashboard/chats/") && pathname.split("/").length > 3;
+    const isChatRoom = pathname === "/dashboard" || (pathname?.startsWith("/dashboard/chats/") && pathname !== "/dashboard/chats");
 
     useEffect(() => {
         // ... (Keep existing useEffect exactly as is) ...
@@ -60,7 +60,7 @@ function DashboardContent({
             if (data) {
                 // 🔒 CHECK 1: ARE THEY VERIFIED? (Allow 'verified' OR 'pending')
                 // If NULL (new user) or REJECTED -> Go to Verify
-                
+
                 // NEW: If 'pending' BUT no image (bugged state), force them back to verify.
                 const isPendingButNoImage = data.verification_status === 'pending' && !data.verification_image_path;
 
