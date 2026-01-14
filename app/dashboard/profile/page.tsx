@@ -52,6 +52,24 @@ export default function ProfilePage() {
 
             {/* BANNER AREA */}
             <div className="relative mb-20">
+                {/* Status Badges */}
+                <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
+                    <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${profile.tier === 'pro'
+                            ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
+                            : 'bg-zinc-900/50 border-zinc-700 text-zinc-300 backdrop-blur-md'
+                        }`}>
+                        {profile.tier === 'pro' ? 'Pro Member' : 'Free Tier'}
+                    </div>
+                    {profile.verification_status && (
+                        <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${profile.verification_status === 'verified'
+                                ? 'bg-green-500/10 border-green-500 text-green-500 backdrop-blur-md'
+                                : 'bg-yellow-500/10 border-yellow-500 text-yellow-500 backdrop-blur-md'
+                            }`}>
+                            {profile.verification_status}
+                        </div>
+                    )}
+                </div>
+
                 {/* Banner Image (Gradient for now) */}
                 <div className="h-48 w-full bg-gradient-to-r from-[#FF6B91] to-[#A67CFF] rounded-3xl opacity-80"></div>
 
@@ -67,7 +85,12 @@ export default function ProfilePage() {
                     <div className="mb-4">
                         <h1 className="text-3xl font-serif font-bold flex items-center gap-2">
                             {profile.full_name}
-                            <ShieldCheck size={24} className="text-[#FF6B91]" />
+                            {profile.dob && (
+                                <span className="text-zinc-500 text-lg font-normal ml-2">
+                                    {Math.floor((new Date().getTime() - new Date(profile.dob).getTime()) / 31557600000)}
+                                </span>
+                            )}
+                            <ShieldCheck size={24} className="text-[#FF6B91] ml-1" />
                         </h1>
                         <p className="text-zinc-400">@{profile.email?.split('@')[0]}</p>
                     </div>
@@ -131,7 +154,7 @@ export default function ProfilePage() {
                     <div className="bg-gradient-to-br from-[#111] to-[#1A1A1A] border border-zinc-800 rounded-2xl p-6 flex items-center justify-between">
                         <div>
                             <p className="text-xs font-bold text-zinc-500 uppercase mb-1">Identity</p>
-                            <p className="text-xl text-white font-medium">{profile.gender || "Not specified"}</p>
+                            <p className="text-xl text-white font-medium">{profile.gender_identity || "Not specified"}</p>
                         </div>
                         <div className="w-12 h-12 rounded-full bg-[#FF6B91]/10 flex items-center justify-center">
                             <Heart className="text-[#FF6B91]" fill="currentColor" />

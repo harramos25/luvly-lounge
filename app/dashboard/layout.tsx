@@ -21,7 +21,7 @@ function GlobalMobileHeader({ children }: { children: React.ReactNode }) {
             </header>
 
             {/* Page Content */}
-            <main className="flex-1 overflow-hidden relative">
+            <main className="flex-1 overflow-y-auto relative custom-scrollbar">
                 {children}
             </main>
         </div>

@@ -26,7 +26,7 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
             // 2. Get Profile
             const { data: profile } = await supabase
                 .from("profiles")
-                .select("verification_status, full_name, interests, gender_identity")
+                .select("verification_status, full_name, interests, gender_identity, dob")
                 .eq("id", user.id)
                 .single();
 
@@ -38,8 +38,8 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
             }
 
             // 🚨 CHECK 2: ONBOARDING
-            // If they haven't finished setup (name, interests, gender)
-            if (!profile?.full_name || !profile?.interests || profile.interests.length === 0 || !profile?.gender_identity) {
+            // If they haven't finished setup (name, interests, gender, dob)
+            if (!profile?.full_name || !profile?.interests || profile.interests.length === 0 || !profile?.gender_identity || !profile?.dob) {
                 router.replace("/onboarding");
                 return;
             }
