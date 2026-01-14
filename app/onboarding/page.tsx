@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { User, Heart, Sparkles, ArrowRight, Camera, Check } from "lucide-react";
+import { User, Heart, Sparkles, ArrowRight, Camera, Check, Plus, X } from "lucide-react";
 
 // YOUR MASTER LIST
 const GENDER_OPTIONS = [
@@ -15,12 +15,6 @@ const GENDER_OPTIONS = [
     "Girlflux", "Femflux", "Soft woman-aligned identities"
 ];
 
-const INTEREST_TAGS = [
-    "Tech", "Art", "Gaming", "Fashion", "Beauty", "Books",
-    "Fitness", "Travel", "Music", "Movies", "Cooking",
-    "Astrology", "Business", "Mental Health", "DIY", "Politics"
-];
-
 export default function Onboarding() {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -30,6 +24,7 @@ export default function Onboarding() {
     // FORM STATE
     const [gender, setGender] = useState("");
     const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+    const [inputValue, setInputValue] = useState(""); // 🟢 NEW: For Tying
     const [fullName, setFullName] = useState("");
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
@@ -51,6 +46,13 @@ export default function Onboarding() {
                     return;
                 }
 
+                // 🛑 ONBOARDING COMPLETE CHECK (New)
+                if (data?.full_name && data?.interests && data.interests.length > 0 && data?.gender_identity) {
+                    // They are done. Get them out.
+                    router.replace('/dashboard');
+                    return;
+                }
+
                 if (data?.full_name) setFullName(data.full_name);
                 if (data?.avatar_url) setAvatarUrl(data.avatar_url);
                 setChecking(false); // ✅ Safe to show UI
@@ -63,13 +65,17 @@ export default function Onboarding() {
 
     // --- HANDLERS ---
 
-    const toggleInterest = (tag: string) => {
-        if (selectedInterests.includes(tag)) {
-            setSelectedInterests(prev => prev.filter(t => t !== tag));
-        } else {
-            if (selectedInterests.length >= 3) return; // Limit to 3 for Free tier
-            setSelectedInterests(prev => [...prev, tag]);
-        }
+    const handleAddInterest = () => {
+        const tag = inputValue.trim().toLowerCase();
+        if (!tag) return;
+        if (selectedInterests.includes(tag)) { setInputValue(""); return; }
+        if (selectedInterests.length >= 3) { alert("Max 3 interests for Free tier."); return; }
+        setSelectedInterests(prev => [...prev, tag]);
+        setInputValue("");
+    };
+
+    const handleRemoveInterest = (tag: string) => {
+        setSelectedInterests(prev => prev.filter(t => t !== tag));
     };
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,7 +128,7 @@ export default function Onboarding() {
             console.error("Error saving profile:", error);
             alert("Error saving profile: " + error.message);
         } else {
-            router.push("/dashboard"); // GO TO CHAT!
+            router.replace("/dashboard"); // 🟢 FIXED: Using replace!
         }
         setLoading(false);
     };
@@ -183,30 +189,46 @@ export default function Onboarding() {
                     </div>
                 )}
 
-                {/* --- STEP 2: INTERESTS --- */}
+                {/* --- STEP 2: INTERESTS (UPDATED TYPE & ADD) --- */}
                 {step === 2 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                         <div>
                             <h1 className="text-3xl font-serif text-[#A67CFF]">Your Vibe</h1>
-                            <p className="text-zinc-500 mt-2">Pick 3 things you love.</p>
+                            <p className="text-zinc-500 mt-2">Type 3 things you love (e.g. Sushi, Anime).</p>
                         </div>
 
-                        <div className="flex flex-wrap gap-3">
-                            {INTEREST_TAGS.map((tag) => {
-                                const isSelected = selectedInterests.includes(tag);
-                                return (
-                                    <button
-                                        key={tag}
-                                        onClick={() => toggleInterest(tag)}
-                                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${isSelected
-                                            ? "bg-[#A67CFF] border-[#A67CFF] text-black"
-                                            : "bg-[#111] border-zinc-800 text-zinc-400 hover:border-zinc-600"
-                                            }`}
-                                    >
-                                        {tag}
+                        {/* INPUT FIELD */}
+                        <div className="relative">
+                            <input
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddInterest()}
+                                placeholder={selectedInterests.length >= 3 ? "Max 3 reached" : "Type and press Enter..."}
+                                disabled={selectedInterests.length >= 3}
+                                className="w-full bg-[#111] border border-zinc-800 rounded-xl p-4 pr-12 text-white focus:border-[#A67CFF] outline-none disabled:opacity-50"
+                            />
+                            <button
+                                onClick={handleAddInterest}
+                                disabled={!inputValue || selectedInterests.length >= 3}
+                                className="absolute right-3 top-3 p-2 bg-zinc-800 rounded-lg text-white disabled:opacity-0 hover:bg-[#A67CFF] transition-colors"
+                            >
+                                <Plus size={16} />
+                            </button>
+                        </div>
+
+                        {/* TAGS LIST */}
+                        <div className="flex flex-wrap gap-2 min-h-[60px]">
+                            {selectedInterests.map(tag => (
+                                <span key={tag} className="px-3 py-2 bg-zinc-800 rounded-full text-sm text-white flex items-center gap-2 border border-zinc-700 animate-in zoom-in">
+                                    {tag}
+                                    <button onClick={() => handleRemoveInterest(tag)} className="hover:text-red-400">
+                                        <X size={14} />
                                     </button>
-                                );
-                            })}
+                                </span>
+                            ))}
+                            {selectedInterests.length === 0 && (
+                                <p className="text-zinc-600 italic text-sm p-2">No interests added yet...</p>
+                            )}
                         </div>
 
                         <p className="text-right text-xs text-zinc-500">{selectedInterests.length} / 3 selected</p>

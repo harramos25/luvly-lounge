@@ -90,7 +90,6 @@ export default function DashboardPage() {
 
     const openPartnerProfile = async () => {
         if (!partner) return;
-        // In a real app, fetch full details by ID here. For now using partner state.
         setPartnerFull(partner);
         setShowProfileModal(true);
     };
@@ -249,8 +248,9 @@ export default function DashboardPage() {
 
     // --- LOBBY VIEW ---
     if (view === "LOBBY") {
+        // FIX: Changed absolute inset-0 to h-full flex flex-col relative
         return (
-            <div className="h-full bg-[#0a0a0a] text-white flex flex-col items-center relative font-sans overflow-hidden">
+            <div className="h-full flex flex-col relative bg-[#0a0a0a] text-white font-sans overflow-hidden">
                 <div className="absolute top-4 left-4 z-50 md:hidden"><button onClick={toggle} className="p-2 bg-black/50 rounded-full"><Menu className="text-zinc-400" /></button></div>
                 <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto space-y-8 p-4">
                     <div className="text-center space-y-4">
@@ -275,7 +275,8 @@ export default function DashboardPage() {
 
     // --- CHAT + MINI LOBBY VIEW ---
     return (
-        <div className="absolute inset-0 flex flex-col bg-[#18181b] text-white font-sans overflow-hidden">
+        // FIX: Changed absolute inset-0 to h-full flex flex-col relative
+        <div className="h-full flex flex-col relative bg-[#18181b] text-white font-sans overflow-hidden">
             {renderProfileModal()}
 
             <div className="flex-none h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 z-50">
@@ -326,7 +327,8 @@ export default function DashboardPage() {
                 <div ref={messagesEndRef} />
             </div>
 
-            <div className="flex-none z-50 bg-[#111]">
+            {/* FOOTER FIX: Z-10 to allow Sidebar to cover it */}
+            <div className="flex-none z-10 bg-[#111]">
                 {!isSkipped && !finding ? (
                     <div className="p-3 border-t border-zinc-800 flex items-end gap-2 pb-safe">
                         <button onClick={handleSkip} className={`h-12 px-5 font-bold text-sm rounded-xl transition-all shadow-lg min-w-[80px] ${skipConfirm ? "bg-red-600 animate-pulse text-white" : "bg-[#ea580c] text-white"}`}>{skipConfirm ? "CONFIRM" : "SKIP"}</button>
