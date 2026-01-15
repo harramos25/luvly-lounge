@@ -8,16 +8,18 @@ import Gatekeeper from "@/components/Gatekeeper"; // Import Gatekeeper
 
 // The Global Header (Only for pages that lack their own header)
 function GlobalMobileHeader({ children }: { children: React.ReactNode }) {
-    const { toggle } = useSidebar();
+    const { toggle, isOpen } = useSidebar();
 
     return (
         <div className="flex flex-col h-full">
             {/* Mobile Header */}
-            <header className="flex-none h-16 flex items-center px-4 border-b border-zinc-800 bg-[#0d0d0d] md:hidden z-30">
-                <button onClick={toggle} className="p-2 -ml-2 text-zinc-400 hover:text-white rounded-lg active:bg-zinc-800">
-                    <Menu size={24} />
-                </button>
-                <span className="ml-3 font-bold text-white">Luvly Lounge</span>
+            <header className="flex-none h-16 flex items-center justify-between px-4 border-b border-zinc-800 bg-[#0d0d0d] md:hidden z-30">
+                <span className="font-bold text-white">Luvly Lounge</span>
+                {!isOpen && (
+                    <button onClick={toggle} className="p-2 -mr-2 text-zinc-400 hover:text-white rounded-lg active:bg-zinc-800">
+                        <Menu size={24} />
+                    </button>
+                )}
             </header>
 
             {/* Page Content */}

@@ -12,7 +12,7 @@ import { useSidebar } from "./sidebar-context";
 export default function DashboardPage() {
     const supabase = createClient();
     const router = useRouter();
-    const { toggle } = useSidebar();
+    const { toggle, isOpen } = useSidebar();
 
     // STATES
     const [view, setView] = useState<"LOBBY" | "CHAT">("LOBBY");
@@ -315,7 +315,7 @@ export default function DashboardPage() {
         return (
             <div className="h-full flex flex-col relative bg-[#0a0a0a] text-white font-sans overflow-hidden">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-64 bg-[#FF6B91] opacity-10 blur-[100px] pointer-events-none"></div>
-                <div className="absolute top-4 left-4 z-50 md:hidden"><button onClick={toggle} className="p-2 bg-black/50 rounded-full"><Menu className="text-zinc-400" /></button></div>
+                <div className="absolute top-4 right-4 z-50 md:hidden">{!isOpen && <button onClick={toggle} className="p-2 bg-black/50 rounded-full"><Menu className="text-zinc-400" /></button>}</div>
                 <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto space-y-8 p-6 z-10">
                     <div className="text-center space-y-4">
                         <div className="w-24 h-24 mx-auto bg-gradient-to-tr from-[#FF6B91] to-[#A67CFF] rounded-3xl flex items-center justify-center shadow-2xl shadow-purple-500/20 rotate-3 hover:rotate-0 transition-transform duration-500"><MessageCircle size={48} className="text-white fill-white/10" /></div>
@@ -345,7 +345,6 @@ export default function DashboardPage() {
 
             <div className="flex-none h-16 flex items-center justify-between px-4 bg-[#111] border-b border-zinc-800 z-50">
                 <div className="flex items-center gap-4">
-                    <button onClick={toggle}><Menu size={24} className="text-zinc-400" /></button>
                     <button onClick={openPartnerProfile} className="flex items-center gap-3 text-left group">
                         <div className="w-9 h-9 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700 group-hover:border-[#FF6B91] transition-colors">
                             {partner?.avatar_url && <img src={partner.avatar_url} className="w-full h-full object-cover" />}
@@ -356,7 +355,10 @@ export default function DashboardPage() {
                         </div>
                     </button>
                 </div>
-                <button className="text-zinc-400"><MoreVertical size={24} /></button>
+                <div className="flex items-center gap-4">
+                    <button className="text-zinc-400"><MoreVertical size={24} /></button>
+                    {!isOpen && <button onClick={toggle}><Menu size={24} className="text-zinc-400" /></button>}
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#18181b] w-full" onClick={() => setSkipConfirm(false)}>
