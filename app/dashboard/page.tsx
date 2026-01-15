@@ -226,54 +226,58 @@ export default function DashboardPage() {
         setIsSkipped(true); setSkipReason("You have skipped this chat."); setSkipConfirm(false); localStorage.removeItem("active_match_id");
     };
 
-    // 2. REALTIME MATCH LISTENER (Optimized Latency)
+    // 2. REALTIME MATCH LISTENER v2 (Listen for Chat Creation)
     useEffect(() => {
         if (!finding || !userId) return;
 
-        const channel = supabase.channel(`profile-status-${userId}`)
+        // A. Realtime Listener: Trigger when I am added to a conversation
+        const channel = supabase.channel(`match-listener-${userId}`)
             .on(
                 'postgres_changes',
                 {
-                    event: 'UPDATE',
+                    event: 'INSERT',
                     schema: 'public',
-                    table: 'profiles',
-                    filter: `id=eq.${userId}`
+                    table: 'conversation_participants',
+                    filter: `user_id=eq.${userId}`
                 },
                 async (payload) => {
-                    if (payload.new.status === 'busy' && !matchFoundRef.current) {
-                        console.log("Realtime: Matched found!");
+                    console.log("Realtime: New conversation detected!", payload);
+                    if (!matchFoundRef.current) {
                         matchFoundRef.current = true;
-
-                        // Stop the active search
                         if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
-
-                        // Give DB a moment to propagate the conversation creation
-                        // Retry a few times to find the new conversation
-                        let attempts = 0;
-                        const findConv = async () => {
-                            const { data: recentChat } = await supabase
-                                .from("conversation_participants")
-                                .select("conversation_id, created_at")
-                                .eq("user_id", userId)
-                                .order("created_at", { ascending: false })
-                                .limit(1)
-                                .single();
-
-                            if (recentChat && (Date.now() - new Date(recentChat.created_at).getTime() < 60000)) {
-                                loadChat(recentChat.conversation_id, userId);
-                            } else if (attempts < 5) {
-                                attempts++;
-                                setTimeout(findConv, 500); // Retry every 500ms
-                            }
-                        };
-                        findConv();
+                        loadChat(payload.new.conversation_id, userId);
                     }
                 }
             )
             .subscribe();
 
+        // B. Polling Fallback (Safety Net) - Check every 4s
+        // In case Realtime fails (connection issues), we still want to catch the match.
+        // We also check profile status here to catch "Out of Sync" states.
+        const pollInterval = setInterval(async () => {
+            if (matchFoundRef.current) return;
+
+            // Check if I was added to a chat recently
+            const { data: recentChat } = await supabase
+                .from("conversation_participants")
+                .select("conversation_id, created_at")
+                .eq("user_id", userId)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .single();
+
+            if (recentChat && (Date.now() - new Date(recentChat.created_at).getTime() < 30000)) {
+                console.log("Polling: Found match!");
+                matchFoundRef.current = true;
+                clearInterval(pollInterval);
+                if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
+                loadChat(recentChat.conversation_id, userId);
+            }
+        }, 4000);
+
         return () => {
             supabase.removeChannel(channel);
+            clearInterval(pollInterval);
         };
     }, [finding, userId]);
 
