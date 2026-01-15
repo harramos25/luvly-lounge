@@ -12,8 +12,8 @@ begin
   -- Delete Friend Requests
   delete from friend_requests where sender_id = target_id or receiver_id = target_id;
   
-  -- Delete Direct Messages
-  delete from direct_messages where sender_id = target_id;
+  -- Delete Direct Messages (Both sent by me AND sent TO me, to clear FKs)
+  delete from direct_messages where sender_id = target_id or receiver_id = target_id;
   
   -- Attempt to delete from 'messages' if it exists (legacy/other table)
   begin
