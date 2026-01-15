@@ -168,13 +168,7 @@ export default function DashboardPage() {
                 loadChat(convId, userId);
             }
 
-            const { data: myProfile } = await supabase.from("profiles").select("status").eq("id", userId).single();
-            if (myProfile?.status === 'busy' && !matchFoundRef.current) {
-                const { data: recentChat } = await supabase.from("conversation_participants").select("conversation_id, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).single();
-                if (recentChat && (Date.now() - new Date(recentChat.created_at).getTime() < 60000)) {
-                    matchFoundRef.current = true; clearInterval(interval); loadChat(recentChat.conversation_id, userId);
-                }
-            }
+            // Removed polling for 'busy' status - handled by Realtime Listener now.
             if (attempts >= 60) {
                 clearInterval(interval); setFinding(false); await supabase.from("profiles").update({ status: 'online' }).eq("id", userId); alert("No match found."); setIsSkipped(true); setSkipReason("No partner found.");
             }
@@ -231,6 +225,57 @@ export default function DashboardPage() {
         if (activeConvId) await supabase.from("direct_messages").delete().eq("conversation_id", activeConvId);
         setIsSkipped(true); setSkipReason("You have skipped this chat."); setSkipConfirm(false); localStorage.removeItem("active_match_id");
     };
+
+    // 2. REALTIME MATCH LISTENER (Optimized Latency)
+    useEffect(() => {
+        if (!finding || !userId) return;
+
+        const channel = supabase.channel(`profile-status-${userId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'profiles',
+                    filter: `id=eq.${userId}`
+                },
+                async (payload) => {
+                    if (payload.new.status === 'busy' && !matchFoundRef.current) {
+                        console.log("Realtime: Matched found!");
+                        matchFoundRef.current = true;
+
+                        // Stop the active search
+                        if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
+
+                        // Give DB a moment to propagate the conversation creation
+                        // Retry a few times to find the new conversation
+                        let attempts = 0;
+                        const findConv = async () => {
+                            const { data: recentChat } = await supabase
+                                .from("conversation_participants")
+                                .select("conversation_id, created_at")
+                                .eq("user_id", userId)
+                                .order("created_at", { ascending: false })
+                                .limit(1)
+                                .single();
+
+                            if (recentChat && (Date.now() - new Date(recentChat.created_at).getTime() < 60000)) {
+                                loadChat(recentChat.conversation_id, userId);
+                            } else if (attempts < 5) {
+                                attempts++;
+                                setTimeout(findConv, 500); // Retry every 500ms
+                            }
+                        };
+                        findConv();
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [finding, userId]);
 
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
