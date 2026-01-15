@@ -59,7 +59,34 @@ export default function Onboarding() {
         getUser();
     }, []);
 
-    // ... (Handlers same as before) 
+    // Handlers
+    const handleAddInterest = () => {
+        if (inputValue.trim() && !selectedInterests.includes(inputValue.trim()) && selectedInterests.length < 3) {
+            setSelectedInterests([...selectedInterests, inputValue.trim()]);
+            setInputValue("");
+        }
+    };
+
+    const handleRemoveInterest = (tag: string) => {
+        setSelectedInterests(selectedInterests.filter(i => i !== tag));
+    };
+
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${userId}/avatar.${fileExt}`;
+
+        const { error } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+
+        if (error) {
+            alert('Error uploading avatar: ' + error.message);
+        } else {
+            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+            const urlWithTime = `${publicUrl}?t=${Date.now()}`;
+            setAvatarUrl(urlWithTime);
+        }
+    };
 
     // Updated finishOnboarding
     const finishOnboarding = async () => {
