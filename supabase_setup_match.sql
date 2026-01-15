@@ -16,9 +16,12 @@ security definer -- 🔴 FIX: Bypass RLS so we can see other users who are searc
 as $$
 declare
   match_record record;
+  updated_rows int;
 begin
-  -- Find a user who is 'searching', not me, and shares at least one interest.
-  -- Prioritize users who are NOT in an active conversation with me (optional but good).
+  -- 1. Try to find a match and LOCK the row (SKIP LOCKED) to prevent race conditions
+  -- We select a user who is 'searching', shares interest, is NOT me.
+  
+  -- ATTEMPT 1: Interest Match
   select 
     p.id, 
     p.full_name, 
@@ -28,18 +31,12 @@ begin
   from profiles p
   where p.id != my_id
     and p.status = 'searching'
-    and p.interests && my_interests -- Array overlap operator
-  limit 1;
+    and p.interests && my_interests
+  limit 1
+  for update skip locked; -- KEY CHANGE: Lock the candidate row
 
-  if match_record.id is not null then
-    -- 1. INTEREST MATCH FOUND
-    return query select 
-      match_record.id, 
-      match_record.full_name, 
-      match_record.avatar_url, 
-      'Interest: ' || match_record.common_interest;
-  else
-    -- 2. NO INTEREST MATCH -> FALLBACK TO RANDOM
+  -- ATTEMPT 2: Random Match (if no interest match)
+  if match_record.id is null then
     select 
       p.id, 
       p.full_name, 
@@ -49,17 +46,26 @@ begin
     from profiles p
     where p.id != my_id
       and p.status = 'searching'
-    order by random() -- Simple randomization
-    limit 1;
+    order by random()
+    limit 1
+    for update skip locked; -- KEY CHANGE: Lock the candidate row
+  end if;
 
-    if match_record.id is not null then
-        return query select 
-          match_record.id, 
-          match_record.full_name, 
-          match_record.avatar_url, 
-          'Random Match'::text;
-    end if;
+  -- IF MATCH FOUND
+  if match_record.id is not null then
+    
+    -- UPDATE PARTNER to 'busy' immediately
+    update profiles set status = 'busy' where id = match_record.id;
+    
+    -- UPDATE ME to 'busy' immediately as well
+    update profiles set status = 'busy' where id = my_id;
 
+    return query select 
+      match_record.id, 
+      match_record.full_name, 
+      match_record.avatar_url, 
+      'Interest: ' || match_record.common_interest;
+      
   end if;
 
 end;

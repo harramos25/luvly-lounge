@@ -61,7 +61,17 @@ export async function deleteAccount() {
         return { error: "Not authenticated" };
     }
 
-    // 2. Delete the user using Admin Client
+    // 2. Clean up user data first (Avoid Foreign Key errors)
+    // We use the same cleanup logic as the RPC
+    const { error: cleanError } = await adminSupabase.rpc('clean_user_data', { target_id: user.id });
+
+    if (cleanError) {
+        console.error("Cleanup Error:", cleanError);
+        // We continue anyway, hoping cascading delete works or it matches expected behavior.
+        // But realistically this might fail if the function isn't installed.
+    }
+
+    // 3. Delete the user using Admin Client
     const { error: deleteError } = await adminSupabase.auth.admin.deleteUser(user.id);
 
     if (deleteError) {

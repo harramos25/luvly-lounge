@@ -28,21 +28,7 @@ export default function ProfilePage() {
         getProfile();
     }, []);
 
-    const handleDeleteAccount = async () => {
-        const confirmDelete = window.confirm("Are you ABSOLUTELY sure? This will permanently delete your account and all data.");
-        if (!confirmDelete) return;
-
-        const { error } = await supabase.rpc('delete_user_account');
-
-        if (error) {
-            console.error(error);
-            alert("Failed to delete account. Make sure you installed the SQL function! " + error.message);
-        } else {
-            await supabase.auth.signOut();
-            alert("Account deleted. Goodbye! 💔");
-            router.push("/login");
-        }
-    };
+    // handleDeleteAccount removed (moved to Settings)
 
     if (loading) return <div className="p-10 text-white">Loading Profile...</div>;
     if (!profile) return null;
@@ -55,15 +41,15 @@ export default function ProfilePage() {
                 {/* Status Badges */}
                 <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
                     <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${profile.tier === 'pro'
-                            ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
-                            : 'bg-zinc-900/50 border-zinc-700 text-zinc-300 backdrop-blur-md'
+                        ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
+                        : 'bg-zinc-900/50 border-zinc-700 text-zinc-300 backdrop-blur-md'
                         }`}>
                         {profile.tier === 'pro' ? 'Pro Member' : 'Free Tier'}
                     </div>
                     {profile.verification_status && (
                         <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${profile.verification_status === 'verified'
-                                ? 'bg-green-500/10 border-green-500 text-green-500 backdrop-blur-md'
-                                : 'bg-yellow-500/10 border-yellow-500 text-yellow-500 backdrop-blur-md'
+                            ? 'bg-green-500/10 border-green-500 text-green-500 backdrop-blur-md'
+                            : 'bg-yellow-500/10 border-yellow-500 text-yellow-500 backdrop-blur-md'
                             }`}>
                             {profile.verification_status}
                         </div>
@@ -101,7 +87,7 @@ export default function ProfilePage() {
                     <button className="bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl flex items-center gap-2 transition-all">
                         <Share2 size={18} /> Share
                     </button>
-                    <Link href="/dashboard/settings">
+                    <Link href="/dashboard/profile/edit">
                         <button className="bg-white text-black font-bold px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-zinc-200 transition-all">
                             <Edit3 size={18} /> Edit Profile
                         </button>
@@ -164,21 +150,7 @@ export default function ProfilePage() {
 
             </div>
 
-            {/* DANGER ZONE */}
-            <div className="mt-16 max-w-5xl border-t border-zinc-900 pt-8 pb-20">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div>
-                        <h3 className="text-red-500 font-bold mb-1">Danger Zone</h3>
-                        <p className="text-zinc-500 text-sm">Once you delete your account, there is no going back. Please be certain.</p>
-                    </div>
-                    <button
-                        onClick={handleDeleteAccount}
-                        className="bg-red-500/10 text-red-500 border border-red-500/50 hover:bg-red-500 hover:text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
-                    >
-                        <Trash2 size={18} /> Delete Account
-                    </button>
-                </div>
-            </div>
+            {/* <DangerZone removed - moved to Settings> */}
         </div>
     );
 }
