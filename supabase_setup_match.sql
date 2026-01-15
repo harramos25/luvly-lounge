@@ -32,13 +32,35 @@ begin
   limit 1;
 
   if match_record.id is not null then
-    -- Return the match
+    -- 1. INTEREST MATCH FOUND
     return query select 
       match_record.id, 
       match_record.full_name, 
       match_record.avatar_url, 
-      match_record.common_interest;
-   end if;
+      'Interest: ' || match_record.common_interest;
+  else
+    -- 2. NO INTEREST MATCH -> FALLBACK TO RANDOM
+    select 
+      p.id, 
+      p.full_name, 
+      p.avatar_url,
+      'Random Match'::text as common_interest
+    into match_record
+    from profiles p
+    where p.id != my_id
+      and p.status = 'searching'
+    order by random() -- Simple randomization
+    limit 1;
+
+    if match_record.id is not null then
+        return query select 
+          match_record.id, 
+          match_record.full_name, 
+          match_record.avatar_url, 
+          'Random Match'::text;
+    end if;
+
+  end if;
 
 end;
 $$ language plpgsql;

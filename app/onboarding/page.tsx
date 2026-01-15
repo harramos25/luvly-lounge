@@ -39,7 +39,11 @@ export default function Onboarding() {
                 setUserId(user.id);
                 const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
 
-                if (!data?.verification_status || data.verification_status === 'rejected') {
+                if (
+                    !data?.verification_status ||
+                    data.verification_status === 'rejected' ||
+                    (data.verification_status === 'pending' && !data.verification_image_path)
+                ) {
                     router.push('/verify');
                     return;
                 }

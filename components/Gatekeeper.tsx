@@ -26,13 +26,17 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
             // 2. Get Profile
             const { data: profile } = await supabase
                 .from("profiles")
-                .select("verification_status, full_name, interests, gender_identity, dob")
+                .select("verification_status, verification_image_path, full_name, interests, gender_identity, dob")
                 .eq("id", user.id)
                 .single();
 
             // 🚨 CHECK 1: VERIFICATION
-            // If no status or rejected, go to Verify
-            if (!profile?.verification_status || profile.verification_status === 'rejected') {
+            // If no status, rejected, OR (pending but NO image), go to Verify
+            if (
+                !profile?.verification_status ||
+                profile.verification_status === 'rejected' ||
+                (profile.verification_status === 'pending' && !profile.verification_image_path)
+            ) {
                 router.replace("/verify");
                 return;
             }
