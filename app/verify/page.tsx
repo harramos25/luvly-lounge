@@ -105,6 +105,7 @@ export default function VerifyPage() {
                             ref={webcamRef}
                             screenshotFormat="image/jpeg"
                             className="w-full h-full object-cover"
+                            mirrored={false}
                         />
                     ) : (
                         <img src={image} alt="Captured" className="w-full h-full object-cover" />

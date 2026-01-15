@@ -6,10 +6,29 @@ import { createClient } from "@/utils/supabase/client";
 import { Camera, Save, AlertTriangle, Trash2, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { deleteAccount } from "@/actions/delete-account";
+
 export default function SettingsPage() {
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [deleting, setDeleting] = useState(false); // New state
     const [userId, setUserId] = useState("");
+
+    const handleDelete = async () => {
+        if (!confirm("Are you SURE you want to delete your account? This is irreversible.")) return;
+        if (!confirm("Last chance. All your data will be wiped.")) return;
+
+        setDeleting(true);
+        const res = await deleteAccount();
+
+        if (res?.error) {
+            alert("Error deleting account: " + res.error);
+            setDeleting(false);
+        } else {
+            alert("Account deleted. Goodbye.");
+            window.location.href = "/"; // Force full reload/redirect
+        }
+    };
 
     // Form State
     const [fullName, setFullName] = useState("");
@@ -162,7 +181,12 @@ export default function SettingsPage() {
                 <div className="mt-12 pt-12 border-t border-zinc-900">
                     <div className="bg-red-900/10 border border-red-900/30 rounded-2xl p-6 flex items-center justify-between">
                         <div><p className="font-bold text-white text-sm">Delete Account</p><p className="text-xs text-zinc-500 mt-1">This cannot be undone.</p></div>
-                        <button className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded-lg"><Trash2 size={14} /> Delete</button>
+                        <button
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                            {deleting ? 'Deleting...' : <><Trash2 size={14} /> Delete</>}
+                        </button>
                     </div>
                 </div>
 
